@@ -1,0 +1,134 @@
+{
+  "name": "harbor-terminal",
+  "version": "0.4.0-alpha.13",
+  "private": true,
+  "description": "An independent SSH workspace with an encrypted, file-synced vault",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.cjs",
+    "start": "electron .",
+    "build": "vite build",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node scripts/smoke.cjs",
+    "dist": "npm run build && electron-builder --publish never",
+    "test:auth-ui": "node scripts/auth-smoke.cjs",
+    "postinstall": "node scripts/patch-ssh2.cjs",
+    "prebuild": "node scripts/patch-ssh2.cjs",
+    "pretest": "node scripts/patch-ssh2.cjs",
+    "test:batch-ui": "node scripts/batch-smoke.cjs",
+    "dist:preview": "npm run build && node scripts/package-preview.cjs",
+    "test:desktop": "node scripts/desktop-tests.cjs",
+    "test:packaged": "node scripts/desktop-tests.cjs --packaged",
+    "test:routing-ui": "node scripts/routing-smoke.cjs",
+    "test:terminal-ui": "node scripts/terminal-smoke.cjs",
+    "test:import-ui": "node scripts/import-smoke.cjs",
+    "test:sync-ui": "node scripts/sync-smoke.cjs",
+    "test:hosts-ui": "node scripts/hosts-smoke.cjs",
+    "test:release-ui": "node scripts/release-smoke.cjs",
+    "test:recovery-ui": "node scripts/recovery-smoke.cjs",
+    "test:protection-ui": "node scripts/protection-smoke.cjs",
+    "test:windows-installer": "node scripts/check-windows-installer.cjs",
+    "test:backups-ui": "node scripts/backup-management-smoke.cjs",
+    "test:retention-ui": "node scripts/retention-smoke.cjs",
+    "test:mcp": "node --test tests/mcp-*.test.cjs",
+    "test:mcp-full-approval-ui": "node scripts/mcp-full-approval-smoke.cjs",
+    "test:mcp-ui": "node scripts/mcp-smoke.cjs",
+    "test:mcp-auth-ui": "node scripts/mcp-auth-smoke.cjs",
+    "test:mcp-permissions-ui": "node scripts/mcp-permissions-smoke.cjs",
+    "test:mcp-clients-ui": "node scripts/mcp-clients-smoke.cjs",
+    "test:mcp-host-rights-ui": "node scripts/mcp-host-rights-smoke.cjs",
+    "test:mcp-management-ui": "node scripts/mcp-management-smoke.cjs",
+    "test:ux-ui": "node scripts/ux-smoke.cjs",
+    "test:mcp-approval-ux-ui": "node scripts/mcp-approval-ux-smoke.cjs",
+    "test:mcp-approval-matrix-ui": "node scripts/mcp-approval-matrix-smoke.cjs"
+  },
+  "build": {
+    "appId": "local.harbor.terminal",
+    "productName": "Harbor",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "assets/harbor.png",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "maintainer": "Jor-Tech <48367297+Jor-Tech@users.noreply.github.com>",
+      "icon": "assets/linux-icons",
+      "syncDesktopName": true
+    },
+    "directories": {
+      "output": "release"
+    },
+    "asarUnpack": [
+      "node_modules/node-pty/**/*"
+    ],
+    "icon": "assets/harbor.png",
+    "artifactName": "Harbor-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "executableName": "Harbor"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "extraResources": [
+      {
+        "from": "electron/mcp/bridge.cjs",
+        "to": "harbor-mcp.cjs"
+      }
+    ]
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@peculiar/x509": "2.2.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^1.59.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "reflect-metadata": "0.2.2",
+    "semver": "7.8.5",
+    "ssh2": "1.17.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.1",
+    "electron-builder": "^26.15.3",
+    "playwright": "^1.64.1",
+    "vite": "^8.3.4"
+  },
+  "author": {
+    "name": "Jor-Tech"
+  },
+  "homepage": "https://github.com/Jor-Tech/Harbor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jor-Tech/Harbor.git"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "desktopName": "harbor.desktop",
+  "license": "MIT"
+}

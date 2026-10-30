@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "workspaces": [
+    {
+      "id": "upgrade-workspace",
+      "label": "Synthetic workspace",
+      "layout": {
+        "type": "pane",
+        "id": "pane",
+        "hostId": "upgrade-host",
+        "local": false
+      }
+    }
+  ],
+  "hosts": [
+    {
+      "id": "upgrade-host",
+      "label": "Upgrade fixture",
+      "address": "upgrade.example.test",
+      "port": 2222,
+      "username": "fixture",
+      "password": "synthetic-host-password",
+      "groupId": "upgrade-group",
+      "keyId": "upgrade-key",
+      "tags": "fixture",
+      "createdAt": "2026-10-18T00:00:00Z"
+    }
+  ],
+  "groups": [
+    {
+      "id": "upgrade-group",
+      "label": "Upgrade group",
+      "color": "purple"
+    }
+  ],
+  "keys": [
+    {
+      "id": "upgrade-key",
+      "label": "Synthetic key",
+      "privateKey": "SYNTHETIC PRIVATE KEY - NEVER USED FOR AUTHENTICATION",
+      "passphrase": "synthetic-passphrase"
+    }
+  ],
+  "snippets": [
+    {
+      "id": "upgrade-snippet",
+      "label": "Synthetic command",
+      "command": "echo fixture"
+    }
+  ],
+  "forwardings": [
+    {
+      "id": "upgrade-forward",
+      "label": "Synthetic tunnel",
+      "hostId": "upgrade-host",
+      "type": "local",
+      "listenPort": 0,
+      "destinationHost": "127.0.0.1",
+      "destinationPort": 80
+    }
+  ],
+  "knownHosts": {
+    "upgrade.example.test:2222": {
+      "fingerprint": "SHA256:synthetic-upgrade-fingerprint",
+      "algorithm": "ssh-ed25519"
+    }
+  },
+  "settings": {
+    "theme": "dark",
+    "fontSize": 14,
+    "autoLockMinutes": 15,
+    "hostsHomeView": "groups",
+    "hostSort": "created",
+    "hostSortDirection": "desc"
+  },
+  "history": [
+    {
+      "id": "upgrade-history",
+      "hostId": "upgrade-host",
+      "at": "2026-10-18T00:00:00Z"
+    }
+  ]
+}
