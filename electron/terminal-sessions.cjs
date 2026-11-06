@@ -1,5 +1,6 @@
 'use strict';
 const {randomUUID} = require('node:crypto');
+const {validateSessionRef} = require('./persistent-session.cjs');
 
 // A tab outlives its SSH connection. Retain a saved-host reference (or transient
 // quick-connect configuration), never authentication responses. resolve() reads
@@ -11,6 +12,7 @@ class TerminalSessions {
     this.delays = delays;
     this.stableMs = stableMs;
     this.tabs = new Map();
+    this.suspended = null;
     this.emit = manager.emit;
     manager.emit = (name, event) => {
       const tab = this.tabs.get(event.id);
@@ -29,12 +31,41 @@ class TerminalSessions {
     };
     // Lock, suspend, import, and app shutdown all use this same cancellation path.
     const closeAll = manager.closeAll.bind(manager);
-    manager.closeAll = () => { for (const id of [...this.tabs.keys()]) this.close(id); closeAll(); };
+    manager.closeAll = ({preservePersistent = false, vaultId} = {}) => {
+      if (!preservePersistent) this.suspended = null;
+      else if (vaultId) {
+        this.suspended = {vaultId, tabs:[...this.tabs.values()]
+          .filter(tab => tab.sessionRef && tab.reference?.hostId && tab.label && tab.event?.reason !== 'ended')
+          .map(tab => ({id:tab.id, hostId:tab.reference.hostId, sessionRef:tab.sessionRef}))};
+      }
+      for (const id of [...this.tabs.keys()]) this.close(id);
+      closeAll();
+    };
+  }
+
+  // Called only after the same vault has been unlocked. Recreate inert tabs,
+  // not connections; credentials and remote identity checks are resolved afresh
+  // when the user chooses Reconnect. No labels, buffers or credentials survive lock.
+  restoreSuspended(hosts, vaultId) {
+    const snapshot = this.suspended;
+    this.suspended = null;
+    if (!vaultId || snapshot?.vaultId !== vaultId) return [];
+    const restored = [];
+    for (const saved of snapshot.tabs) {
+      const host = hosts.find(h => h.id === saved.hostId && h.persistentSession === true);
+      if (!host) continue;
+      const tab = {id:saved.id, reference:{hostId:host.id}, sessionRef:saved.sessionRef,
+        label:host.label, local:false, autoReconnect:false, attempt:0, epoch:0, pending:false};
+      this.tabs.set(tab.id, tab);
+      this.publish(tab, 'closed', {reason:'locked'});
+      restored.push({id:tab.id, hostId:host.id, label:tab.label, local:false, ...tab.event});
+    }
+    return restored;
   }
 
   publish(tab, status, extra = {}) {
     tab.status = status;
-    const event = {id:tab.id, status, autoReconnect:tab.autoReconnect, attempt:tab.attempt,
+    const event = {id:tab.id, status, sessionRef:tab.sessionRef, autoReconnect:tab.autoReconnect, attempt:tab.attempt,
       maxAttempts:this.delays.length, pending:tab.pending, error:undefined, reason:undefined,
       nextRetryAt:undefined, exhausted:false, ...extra};
     tab.event = event;
@@ -42,7 +73,8 @@ class TerminalSessions {
   }
 
   async open(reference, local = false) {
-    const tab = {id:randomUUID(), reference, local, autoReconnect:false, attempt:0, epoch:0, pending:false};
+    if (reference?.sessionRef !== undefined) validateSessionRef(reference.sessionRef);
+    const tab = {id:randomUUID(), reference, local, sessionRef:reference?.sessionRef, autoReconnect:false, attempt:0, epoch:0, pending:false};
     this.tabs.set(tab.id, tab);
     await this.attempt(tab, true);
     if (this.tabs.get(tab.id) !== tab) throw new Error('Connection was cancelled');
@@ -58,10 +90,12 @@ class TerminalSessions {
     try {
       const config = tab.local ? null : await this.resolve(tab.reference);
       if (!current()) return;
+      if (tab.sessionRef && config?.host.persistentSession !== true) throw new Error('Enable persistent sessions for this host before resuming this terminal.');
+      if (config?.host.persistentSession === true && !tab.sessionRef) tab.sessionRef = 'harbor-' + randomUUID();
       // Leave full-screen mode and reset terminal input modes without erasing scrollback.
-      if (!initial) this.emit('terminal:data', {id:tab.id, data:'\x1b[?1049l\x1b[?1047l\x1b[?47l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?2004l\r\n\x1b[0m\x1b[33m[Harbor: starting a new session — previous commands are not replayed]\x1b[0m\r\n'});
+      if (!initial) this.emit('terminal:data', {id:tab.id, data:'\x1b[?1049l\x1b[?1047l\x1b[?47l\x1b[!p\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?2004l\r\n\x1b[0m\x1b[33m[Harbor: '+(tab.sessionRef?'resuming persistent session':'starting a new session')+' — previous commands are not replayed]\x1b[0m\r\n'});
       const result = tab.local ? await this.manager.local(tab.id)
-        : await this.manager.connect(config.host, config.credential, config.route, tab.id);
+        : await this.manager.connect(config.host, config.credential, config.route, tab.id, tab.sessionRef);
       if (!current()) return;
       tab.label = result.label;
       tab.connectedAt = Date.now();
@@ -96,6 +130,33 @@ class TerminalSessions {
     const tab = this.tabs.get(id);
     if (!tab) throw new Error('Terminal tab is no longer available');
     return tab;
+  }
+
+  async terminate(id) {
+    const tab = this.get(id);
+    if (!tab.sessionRef || tab.pending || tab.status !== 'connected') throw new Error('Connect to the persistent session before ending it');
+    tab.autoReconnect = false;
+    tab.pending = true;
+    tab.failure = null;
+    this.publish(tab, 'connected');
+    const epoch = tab.epoch;
+    try {
+      await this.manager.terminatePersistent(id);
+      if (this.tabs.get(id) !== tab || epoch !== tab.epoch) return;
+      tab.pending = false;
+      this.cancel(id);
+      this.publish(tab, 'closed', {reason:'ended'});
+    } catch (error) {
+      if (this.tabs.get(id) === tab && epoch === tab.epoch) {
+        tab.pending = false;
+        if (tab.failure) this.disconnected(tab, tab.failure);
+        else this.publish(tab, 'connected');
+      }
+      throw error;
+    } finally {
+      tab.pending = false;
+      if (this.tabs.get(id) === tab && epoch !== tab.epoch && tab.status === 'cancelling') this.publish(tab, 'closed', {reason:'cancelled'});
+    }
   }
 
   reconnect(id) {

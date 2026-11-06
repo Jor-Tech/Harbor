@@ -1,6 +1,8 @@
 name: Desktop previews
 
 on:
+  push:
+    branches: ['release/**']
   workflow_dispatch:
   workflow_call:
 
@@ -49,6 +51,9 @@ jobs:
         run: npm ci
       - name: Backend, agent MFA, SFTP and vault compatibility tests
         run: npm test
+      - name: Real OpenSSH and tmux persistence
+        if: runner.os == 'Linux'
+        run: npm run test:tmux
       - name: Windows installer destination checks
         if: runner.os == 'Windows'
         run: node scripts/check-windows-installer.cjs

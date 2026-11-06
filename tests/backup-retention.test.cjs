@@ -9,6 +9,24 @@ async function save(r,maxCount=5,maxAgeDays=0){const s=await r.info();return r.s
 async function copies(v,n,days=0,bytes){await fs.mkdir(v.path+'.backups',{recursive:true});const added=[],baseTime=Date.now()-days*86400000;for(let i=0;i<n;i++){const name=`${baseTime-i}-${crypto.randomUUID()}-manual.hbr`;await fs.writeFile(path.join(v.path+'.backups',name),bytes||await fs.readFile(v.path));added.push('local:'+name)}return added}
 const file=(v,id)=>path.join(v.path+'.backups',id.slice(6));
 
+test('large Windows file IDs remain distinct when listing and pruning backups',async t=>{
+ const {v,r,m}=await setup(t),before=await fs.readFile(v.path);await copies(v,14);
+ // Distinct 64-bit file IDs collapse to the same Number on NTFS-sized IDs.
+ const ids=new Map();let next=2n**63n;
+ for(const method of ['stat','lstat']){
+  const original=fs[method];
+  t.mock.method(fs,method,async(f,options)=>{
+   const stat=await original(f,options),name=String(f);
+   if(!ids.has(name))ids.set(name,++next);
+   stat.ino=options?.bigint?ids.get(name):Number(ids.get(name));return stat;
+  });
+ }
+ assert.equal((await m.list('local')).rows.length,14);
+ const result=await r.cleanup(false);assert.equal(result.error,null);assert.equal(result.deleted,4);
+ assert.equal((await m.list('local')).rows.length,10);
+ assert.deepEqual(await fs.readFile(v.path),before);
+});
+
 test('default retention remains ten; count settings persist per device without rewriting vault/export',async t=>{
  const {dir,v,r}=await setup(t),before=await fs.readFile(v.path);assert.deepEqual((await r.info()).policy,{maxCount:10,maxAgeDays:0});
  await copies(v,14);await r.cleanup(false);assert.equal((await v.listBackups()).backups.length,10);

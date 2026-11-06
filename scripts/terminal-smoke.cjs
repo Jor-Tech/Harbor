@@ -5,7 +5,7 @@ const {createTerminalServer}=require('../tests/helpers/terminal-server.cjs');
 (async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'harbor-terminal-ui-')),server=await createTerminalServer();let app;
  try{
-  app=await electron.launch({executablePath:process.env.HARBOR_EXECUTABLE||undefined,args:process.env.HARBOR_EXECUTABLE?['--disable-gpu']:['.','--disable-gpu'],env:{...process.env,HARBOR_DATA_DIR:dir}});
+  app=await electron.launch({executablePath:process.env.HARBOR_EXECUTABLE||undefined,args:[...(process.env.HARBOR_EXECUTABLE?['--disable-gpu']:['.','--disable-gpu']),...(process.env.HARBOR_TEST_X11==='1'?['--ozone-platform=x11']:[])],env:{...process.env,HARBOR_DATA_DIR:dir}});
   await app.evaluate(async({clipboard})=>{globalThis.harborTestClipboard=await clipboard.read()});
   const page=await app.firstWindow();page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.getByLabel('Vault password',{exact:true}).fill('Harbor-terminal-test-password');await page.getByLabel('Confirm password',{exact:true}).fill('Harbor-terminal-test-password');await page.getByRole('button',{name:'Create vault',exact:true}).click();await page.getByRole('heading',{name:'Hosts',exact:true}).waitFor();

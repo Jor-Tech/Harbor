@@ -12,7 +12,7 @@ Manage hosts, open terminals, transfer files and sync your encrypted vault throu
 
 *The workspace above uses fictional example hosts. No real server or account details are shown.*
 
-> **Preview software:** Harbor is in alpha. Installers are not publisher-signed; macOS builds are ad-hoc signed and not notarized. Your operating system may warn or block installation. Keep a separate encrypted vault backup and review the release notes before upgrading. Do not disable system-wide protections to install a preview.
+> **Installation:** Installers are not publisher-signed; macOS builds are ad-hoc signed and not notarized. Your operating system may warn or block installation. Keep a separate encrypted vault backup and review the release notes before upgrading. Do not disable system-wide protections to install Harbor.
 
 ## Download and install
 
@@ -41,7 +41,8 @@ Already using Harbor? Import your encrypted vault and enter its existing passwor
 ## What you can do
 
 - **Manage servers:** hosts, nested groups, inherited connection settings, tags, favorites, search, sorting, SSH-config import and host duplication.
-- **Work in terminals:** tabs, split panes, saved workspaces, search, command snippets, a local shell and opt-in reconnect per tab.
+- **Work in terminals:** tabs, split panes, saved workspaces, search, command snippets, a local shell, opt-in reconnect per tab and optional per-host tmux session persistence.
+- **Find your next action:** use Ctrl+K (⌘K on macOS) to search hosts, open terminals, saved workspaces and actions.
 - **Move and edit files:** two-panel SFTP, directory transfers, transfer progress, permissions and a remote text editor with concurrent-change detection.
 - **Reach private networks:** jump hosts, local and remote forwarding, and a loopback SOCKS5 TCP proxy.
 - **Use your SSH identity:** passwords, imported/generated keys, system/custom SSH agents and 1Password, with server verification and MFA.
@@ -90,7 +91,7 @@ The vault encrypts hosts, credentials, keys, snippets and other workspace data w
 | Hosts, groups, keys, snippets, saved workspaces and vault preferences | MCP pairings, permissions, approval rules and activity |
 | Trusted SSH server identities and retained connection history | Sync-folder selection, automatic-sync choice, backup-retention settings and update-check preferences |
 
-Vaults normally live in `~/.config/Harbor/` on Linux, `~/Library/Application Support/Harbor/` on macOS, or `%APPDATA%/Harbor/` on Windows. Manual lock, OS screen lock and suspend close sessions and pause MCP. **Lock when inactive → Never** disables only the inactivity timer.
+Vaults normally live in `~/.config/Harbor/` on Linux, `~/Library/Application Support/Harbor/` on macOS, or `%APPDATA%/Harbor/` on Windows. Manual lock, OS screen lock and suspend close SSH connections and pause MCP. Opt-in tmux sessions keep running remotely; saved workspaces retain their session references. **Lock when inactive → Never** disables only the inactivity timer.
 
 Harbor keeps encrypted local recovery copies before vault changes. Use **Vault & sync → Manage backups** to review retention and protected copies, or **Recover backup** to restore one. Folder sync uses a folder managed by your chosen sync provider; Harbor does not provide cloud storage. Conflicting edits are preserved for review.
 

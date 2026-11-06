@@ -48,12 +48,13 @@ class BackupRetention {
    if(configuredOnly&&!state.configured)return finish({skipped:'Default retention runs when a new backup is created.'});
    if(!v._key||!v._envelope)return finish({skipped:'Cleanup waits until the vault is unlocked.'});
    const directory=await v._backupDirectory();if(!directory)return finish();
-   const root=identity(await fs.lstat(directory)),active=identity(await fs.stat(v.path));
+   // NTFS file IDs can exceed Number's exact integer range. Keep identity exact.
+   const root=identity(await fs.lstat(directory,{bigint:true})),active=identity(await fs.stat(v.path,{bigint:true}));
    const entries=(await v._backupFiles()).filter(e=>!e.legacy&&!state.kept.includes(e.id)),copies=[],safety=[];
    for(const entry of entries){
     v._check(epoch);
     try{
-     const stat=await fs.lstat(entry.file);if(!stat.isFile()||stat.isSymbolicLink()||identity(stat)===active)continue;
+     const stat=await fs.lstat(entry.file,{bigint:true});if(!stat.isFile()||stat.isSymbolicLink()||identity(stat)===active)continue;
      const bytes=await this.h.readFile(entry.file),envelope=this.h.parseEnvelope(bytes);
      if(envelope.id!==v._envelope.id)continue;
      const copy={...entry,hash:this.h.digest(bytes),identity:identity(stat)};copies.push(copy);
@@ -69,13 +70,13 @@ class BackupRetention {
    const cutoff=state.policy.maxAgeDays?Date.now()-state.policy.maxAgeDays*86400000:0;
    const targets=copies.filter((e,index)=>!keep.has(e.id)&&(index>=state.policy.maxCount||(cutoff&&e.createdAt<cutoff)));
    const unchanged=async copy=>{
-    const stat=await fs.lstat(copy.file);
+    const stat=await fs.lstat(copy.file,{bigint:true});
     if(!stat.isFile()||stat.isSymbolicLink()||identity(stat)!==copy.identity||this.h.digest(await this.h.readFile(copy.file))!==copy.hash)throw new Error('Backup files changed during cleanup. Remaining copies were preserved.');
    };
    for(const copy of targets){
     const latest=await this.read();v._check(epoch);
     if(latest.error||latest.token!==state.token)throw new Error('Retention settings changed during cleanup. Remaining copies were preserved.');
-    const currentDirectory=await v._backupDirectory();if(currentDirectory!==directory||identity(await fs.lstat(directory))!==root)throw new Error('The backup folder changed during cleanup. Remaining copies were preserved.');
+    const currentDirectory=await v._backupDirectory();if(currentDirectory!==directory||identity(await fs.lstat(directory,{bigint:true}))!==root)throw new Error('The backup folder changed during cleanup. Remaining copies were preserved.');
     for(const retained of safety)await unchanged(retained);
     await unchanged(copy);v._check(epoch);await fs.unlink(copy.file);deleted.push(copy.id);
    }

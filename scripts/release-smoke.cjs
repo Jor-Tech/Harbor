@@ -37,10 +37,13 @@ function persisted(data){const {effectiveHosts,groupDefaults,...rest}=data;const
     // Network is replaced at the main-process boundary; no GitHub requests or personal data.
     const rows=['98.0.0','99.0.0-beta.2'].map(version=>({tag_name:'v'+version,draft:false,prerelease:version.includes('-'),published_at:'2026-10-30T10:00:00Z',html_url:'https://untrusted.example',assets:installerNames(version,process.platform,process.arch).map(name=>({name,state:'uploaded',size:100}))}));
     await app.evaluate((_electron,rows)=>{global.updateRequests=[];global.fetch=async(url,options)=>{global.updateRequests.push({url,credentials:options.credentials,redirect:options.redirect,headers:options.headers});return new Response(JSON.stringify(rows),{status:200})}},rows);
-    assert.equal((await page.evaluate(()=>window.harbor.invoke('updates:status'))).preferences.automatic,false);
-    await page.getByRole('button',{name:'Check now',exact:true}).click();await page.getByText('Harbor 99.0.0-beta.2 is available.',{exact:true}).waitFor();
+    const initialPreferences=(await page.evaluate(()=>window.harbor.invoke('updates:status'))).preferences;
+    assert.equal(initialPreferences.automatic,false);
+    assert.equal(initialPreferences.includePreviews,info.version.includes('-'),'Only prerelease builds default to preview updates');
+    await page.getByRole('button',{name:'Check now',exact:true}).click();await page.getByText(`Harbor ${initialPreferences.includePreviews?'99.0.0-beta.2':'98.0.0'} is available.`,{exact:true}).waitFor();
     assert(await page.getByRole('button',{name:'View available update',exact:true}).isVisible());
     const requests=await app.evaluate(()=>global.updateRequests);assert.equal(requests.length,1);assert.equal(requests[0].url,API_URL+'?per_page=100&page=1');assert.equal(requests[0].credentials,'omit');assert.equal(requests[0].redirect,'error');assert(!requests[0].headers.Authorization);
+    await page.getByRole('switch',{name:'Include preview releases',exact:true}).check();await page.getByText('Harbor 99.0.0-beta.2 is available.',{exact:true}).waitFor();
     await page.getByRole('switch',{name:'Include preview releases',exact:true}).uncheck();await page.getByText('Harbor 98.0.0 is available.',{exact:true}).waitFor();
     assert.equal((await app.evaluate(()=>global.updateRequests)).length,1,'Changing channel reuses the checked metadata');
     await app.evaluate(({shell})=>{shell.openExternal=async url=>global.openedReleaseLinks.push(url)});

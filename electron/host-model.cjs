@@ -66,6 +66,7 @@ function validateWorkspace(item){
    visit(node.first,depth+1);visit(node.second,depth+1);
   }else if(node.type==='pane'){
    if(++count>8||typeof node.id!=='string'||!node.id||ids.has(node.id)||!(node.local===true||typeof node.hostId==='string'&&node.hostId))throw new Error('Invalid workspace pane');
+   if(node.sessionRef!==undefined){if(node.local)throw new Error('Local terminals cannot use persistent SSH sessions');require('./persistent-session.cjs').validateSessionRef(node.sessionRef);}
    ids.add(node.id);
   }else throw new Error('Invalid workspace layout');
  }

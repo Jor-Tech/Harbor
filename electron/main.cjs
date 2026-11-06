@@ -41,7 +41,7 @@ async function touch() {
   const generation=++touchGeneration;clearTimeout(timer);
   try { const d = await vault.read(); if(generation!==touchGeneration||d.settings.autoLockMinutes===0)return;const minutes = Math.max(1, Math.min(240, Number(d.settings.autoLockMinutes) || 15)); timer = setTimeout(lock, minutes * 60_000); } catch {}
 }
-function lock() { ++touchGeneration; mcp?.pause(); clearInterval(retentionTimer); sshImportPreview=null; ++syncEpoch; syncer?.configure({unlocked:false}); ++lockGeneration; clearTimeout(timer); authPrompts?.cancelAll(); files?.cancelAll(); connections?.closeAll(); vault?.lock(); send('vault:locked', {}); }
+function lock() { ++touchGeneration; mcp?.pause(); clearInterval(retentionTimer); sshImportPreview=null; ++syncEpoch; syncer?.configure({unlocked:false}); ++lockGeneration; clearTimeout(timer); authPrompts?.cancelAll(); files?.cancelAll(); connections?.closeAll({preservePersistent:true,vaultId:vault?.identity}); vault?.lock(); send('vault:locked', {}); }
 async function edit(fn) { return serialize(async () => { const d = await vault.read(); await fn(d); const saved=await vault.save(d); syncer?.schedule(); return saved; }); }
 async function saveDevice(next) {
   const file=path.join(app.getPath('userData'),'device.json'),temp=file+'.'+randomUUID()+'.tmp';
@@ -72,6 +72,7 @@ function validateEntity(collection, item) {
   required(item.label, 'Name', 200);
   if (collection === 'hosts') { required(item.address, 'Address', 253); if (/\s|\0/.test(item.address)) throw new Error('Enter a hostname or IP address'); if (!Number.isInteger(Number(item.port)) || item.port < 1 || item.port > 65535) throw new Error('Port must be between 1 and 65535'); }
   if (['hosts','groups'].includes(collection)&&item.color!==undefined&&!['blue','green','purple','orange','pink'].includes(item.color))throw new Error('Invalid color');
+  if (collection === 'hosts' && item.persistentSession !== undefined && typeof item.persistentSession !== 'boolean') throw new Error('Invalid persistent session preference');
   if (collection === 'keys') required(item.privateKey, 'Private key', 100000);
   if (collection === 'snippets') required(item.command, 'Command', 100000);
   if (collection === 'forwardings') { required(item.hostId, 'SSH host'); forwardConfig(item); }
@@ -104,7 +105,7 @@ async function invoke(action, args = {}, generation = lockGeneration) {
     case 'auth:answer': await vault.read(); assertGeneration(generation); authPrompts.answer(args.id,args.answers); return true;
     case 'vault:status': return vault.status();
     case 'vault:create': { const d = await serialize(() => { assertGeneration(generation); return vault.create(args.password); }); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return d; }
-    case 'vault:unlock': { const d = await serialize(() => { assertGeneration(generation); return vault.unlock(args.password); }); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return d; }
+    case 'vault:unlock': { const d = await serialize(() => { assertGeneration(generation); return vault.unlock(args.password); }); assertGeneration(generation); const restoredTerminals=terminals.restoreSuspended(d.hosts,vault.identity); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return {...d,restoredTerminals}; }
     case 'vault:lock': lock(); return true;
     case 'vault:read': return vault.read();
     case 'vault:security': return vault.encryptionInfo();
@@ -194,7 +195,8 @@ async function invoke(action, args = {}, generation = lockGeneration) {
     case 'clipboard:write': if(typeof args.text!=='string'||!args.text.length||args.text.length>100000)throw new Error('Select between 1 and 100,000 characters to copy.'); await clipboard.writeText(args.text); return true;
     case 'key:generate': { await vault.read(); const keys=require('./keys.cjs').generateKeyPair('ed25519',{comment:'Harbor'}); return {privateKey:keys.private,publicKey:keys.public}; }
     case 'key:import': { await vault.read(); const selected = await dialog.showOpenDialog(win,{title:'Import an SSH private key',properties:['openFile']}); if (selected.canceled) return null; const stat = await fs.stat(selected.filePaths[0]); if (stat.size > 100000) throw new Error('Key file is too large'); return fs.readFile(selected.filePaths[0],'utf8'); }
-    case 'terminal:connect': await vault.read(); assertGeneration(generation); return terminals.open(args.hostId ? {hostId:args.hostId} : {host:args.host});
+    case 'terminal:connect': await vault.read(); assertGeneration(generation); return terminals.open(args.hostId ? {hostId:args.hostId,sessionRef:args.sessionRef} : {host:args.host,sessionRef:args.sessionRef});
+    case 'terminal:terminate': await vault.read(); assertGeneration(generation); return terminals.terminate(args.id);
     case 'terminal:local': await vault.read(); assertGeneration(generation); return terminals.open(null,true);
     case 'terminal:reconnect': await vault.read(); assertGeneration(generation); return terminals.reconnect(args.id);
     case 'terminal:autoReconnect': await vault.read(); terminals.setAutoReconnect(args.id,args.enabled); return true;

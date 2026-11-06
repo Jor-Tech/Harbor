@@ -38,7 +38,10 @@ class McpAccess {
  async persist(next){
   if(this.error)throw new Error(this.error);
   await fs.mkdir(this.dir,{recursive:true,mode:0o700});const file=path.join(this.dir,'mcp-access.json'),temp=file+'.'+randomUUID()+'.tmp';
-  try{await fs.writeFile(temp,JSON.stringify(next),{flag:'wx',mode:0o600});await fs.rename(temp,file);this.state=next;}finally{await fs.rm(temp,{force:true})}
+  try{await fs.writeFile(temp,JSON.stringify(next),{flag:'wx',mode:0o600});await fs.rename(temp,file);}finally{await fs.rm(temp,{force:true})}
+  // Do not expose a setting during async cleanup, before changed() can apply
+  // its desktop effects (notably creating the tray before background close).
+  this.state=next;
  }
  manage(fn){const p=this.queue.then(fn);this.queue=p.catch(()=>{});return p;}
  changed(){this.onChange();}

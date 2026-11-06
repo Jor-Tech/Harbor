@@ -1,6 +1,21 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {McpAccess}=require('../electron/mcp/access.cjs');
+test('background status is published only when persistence cleanup has completed',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'h-mcp-background-'));let changes=0,release,entered,updating;
+ const held=new Promise(resolve=>{release=resolve}),cleaning=new Promise(resolve=>{entered=resolve});
+ const a=new McpAccess({dir,readVault:async()=>({hosts:[]}),onChange:()=>{changes++}}),rm=fs.rm;
+ const mock=t.mock.method(fs,'rm',async(file,options)=>{
+  if(String(file).startsWith(path.join(dir,'mcp-access.json.'))&&String(file).endsWith('.tmp')){entered();await held;}
+  return rm(file,options);
+ });
+ try{
+  updating=a.setBackground(true);await cleaning;
+  assert.equal(a.snapshot().background,false,'Polling must not see background enabled before the tray update can run');
+  assert.equal(changes,0);release();await updating;
+  assert.equal(a.snapshot().background,true);assert.equal(changes,1);
+ }finally{release();await updating?.catch(()=>{});mock.mock.restore();await a.close();await fs.rm(dir,{recursive:true,force:true})}
+});
 test('client pairing persists only hashes and policy edits pause access',async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'h-mcp-'));let locked=false;
  const access=new McpAccess({dir,readVault:async()=>{if(locked)throw new Error('Locked');return {hosts:[{id:'one'}]}},bridgePath:'/bridge.cjs'});
