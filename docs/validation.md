@@ -32,3 +32,7 @@ Interactive Windows/macOS installer behavior, real password-manager integrations
 For a real-server check, enable the option on a disposable POSIX SSH account with tmux already installed. Start a long-running command, save a split workspace, disconnect, restart Harbor and restore it. Verify the same processes continue and no command is repeated. End one remote session and confirm the other survives. Repeat with unavailable tmux and a changed host key. Harbor does not install tmux as part of testing or connection setup.
 
 On Linux/Wayland, if the native clipboard smoke test cannot own the clipboard, run `HARBOR_TEST_X11=1 npm run test:terminal-ui` with XWayland available. If npm skipped native install scripts, build the existing terminal dependency with `node_modules/.bin/electron-rebuild -f -o node-pty` before desktop checks. These are local test-environment steps, not changes to SSH servers.
+
+## Command-palette checks
+
+`npm run test:command-palette-ui` uses a real Electron renderer and disposable SSH server to exercise all four result categories, arrow/Enter/Escape navigation, focus containment and return, empty results, Ctrl/Cmd+K isolation from terminal input, saved-workspace restoration, editor/MFA precedence, light/dark themes, narrow windows and vault locking. `tests/command-palette.test.cjs` covers searchable field boundaries, ranking, busy-state availability and platform-specific shortcuts.

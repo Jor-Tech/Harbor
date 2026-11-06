@@ -42,6 +42,7 @@ Already using Harbor? Import your encrypted vault and enter its existing passwor
 
 - **Manage servers:** hosts, nested groups, inherited connection settings, tags, favorites, search, sorting, SSH-config import and host duplication.
 - **Work in terminals:** tabs, split panes, saved workspaces, search, command snippets, a local shell, opt-in reconnect per tab and optional per-host tmux session persistence.
+- **Find your next action:** use Ctrl+K (⌘K on macOS) to search hosts, open terminals, saved workspaces and actions.
 - **Move and edit files:** two-panel SFTP, directory transfers, transfer progress, permissions and a remote text editor with concurrent-change detection.
 - **Reach private networks:** jump hosts, local and remote forwarding, and a loopback SOCKS5 TCP proxy.
 - **Use your SSH identity:** passwords, imported/generated keys, system/custom SSH agents and 1Password, with server verification and MFA.

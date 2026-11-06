@@ -112,3 +112,11 @@ Each new terminal or split pane gets its own `harbor-…` session name. Manual a
 - If the session has ended (including after a server reboot), reconnect creates an empty session under the same name. Harbor never replays commands or buffered input. Remote tmux configuration can affect session lifetime; persistence is not a process backup.
 
 Deleting a saved workspace does not kill its remote sessions. A saved reference is a tmux session name, not an authentication credential. Changing a host's server or SSH account changes where that reference is resolved. The session is accessible to other clients with access to that same remote account. Vault lock protects Harbor's credentials and closes its connections; it does not stop jobs you explicitly chose to keep running remotely.
+
+## Command palette
+
+Press **Ctrl+K** on Linux/Windows or **⌘K** on macOS from any unlocked workspace page or terminal. You can also click the search icon in the titlebar. Search across saved hosts (name, address, username and tags), open terminal tabs, saved workspaces and actions such as opening Settings, adding a host, opening a local terminal or locking the vault. Search ignores case and accents, supports multiple words, and prioritizes exact names. It does not index passwords, private keys, host notes or snippet commands.
+
+Use **↑/↓** to select, **Enter** to open, and **Esc** to cancel and return focus. Clicking a result also works. The result type distinguishes a saved host from an already open terminal with the same name. Choosing a host opens a connection; choosing an open terminal focuses its existing tab; choosing a workspace uses the normal workspace restore flow, including saved tmux references. Search never runs a shell snippet. With more than 100 matches, refine your search to see the remaining entries.
+
+The palette does not open over an active dialog or the expanded narrow-window navigation. Authentication and other dialogs that appear while searching take priority. While a connection is being opened, additional connection actions are disabled. Vault lock closes the palette, clears its search and removes the searchable vault data until unlock. Normal SSH authentication, host-key checks and confirmation dialogs remain in force.

@@ -41,7 +41,8 @@
     "test:ux-ui": "node scripts/ux-smoke.cjs",
     "test:mcp-approval-ux-ui": "node scripts/mcp-approval-ux-smoke.cjs",
     "test:mcp-approval-matrix-ui": "node scripts/mcp-approval-matrix-smoke.cjs",
-    "test:session-restore-ui": "node scripts/session-restore-smoke.cjs"
+    "test:session-restore-ui": "node scripts/session-restore-smoke.cjs",
+    "test:command-palette-ui": "node scripts/command-palette-smoke.cjs"
   },
   "build": {
     "appId": "local.harbor.terminal",
