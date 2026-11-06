@@ -36,7 +36,7 @@ export function TerminalPane({session,visible,fontSize,buffers,terminalRefs,noti
  useEffect(()=>{if(searching){searchInput.current?.focus();search.current?.clearDecorations();find(false,true)}else search.current?.clearDecorations();fit.current?.fit()},[searching,query,caseSensitive,wholeWord]);
  useEffect(()=>{if(!waiting)return;setNow(Date.now());const timer=setInterval(()=>setNow(Date.now()),500);return()=>clearInterval(timer)},[waiting,session.nextRetryAt]);
  const seconds=Math.max(0,Math.ceil(((session.nextRetryAt||now)-now)/1000));
- const label=connected?'Connected':waiting?`Reconnecting in ${seconds}s · attempt ${session.attempt+1}/${session.maxAttempts}`:session.status==='authenticating'?'Waiting for authentication':session.status==='reconnecting'?`Reconnecting${session.attempt?` · attempt ${session.attempt}/${session.maxAttempts}`:''}`:session.status==='cancelling'?'Cancelling…':session.reason==='exit'?'Session ended':session.exhausted?'Reconnect attempts exhausted':'Disconnected';
+ const label=connected?'Connected':waiting?`Reconnecting in ${seconds}s · attempt ${session.attempt+1}/${session.maxAttempts}`:session.status==='authenticating'?'Waiting for authentication':session.status==='reconnecting'?`Reconnecting${session.attempt?` · attempt ${session.attempt}/${session.maxAttempts}`:''}`:session.status==='cancelling'?'Cancelling…':session.reason==='ended'?'Remote session ended':session.reason==='exit'?'Session ended':session.exhausted?'Reconnect attempts exhausted':'Disconnected';
  return <section className="terminal-pane" aria-label={`${session.label} terminal`} style={{display:visible?'flex':'none'}} onKeyDownCapture={e=>{
   const mac=window.harbor?.platform==='darwin';
   const copy=e.key.toLowerCase()==='c'&&!e.altKey&&(mac?e.metaKey&&!e.ctrlKey&&!e.shiftKey:e.ctrlKey&&e.shiftKey&&!e.metaKey);
@@ -48,10 +48,11 @@ export function TerminalPane({session,visible,fontSize,buffers,terminalRefs,noti
   }
   if(e.key.toLowerCase()==='f'&&(mac?e.metaKey:e.ctrlKey&&e.shiftKey)){e.preventDefault();e.stopPropagation();setSearching(true);searchInput.current?.focus();searchInput.current?.select()}
  }}>
-  <div className="terminal-toolbar"><span><Terminal size={15}/>{session.label}<i className="protocol">{session.local?'LOCAL':'SSH'}</i></span><div>
+  <div className="terminal-toolbar"><span><Terminal size={15}/>{session.label}<i className="protocol">{session.local?'LOCAL':session.sessionRef?'SSH · TMUX':'SSH'}</i></span><div>
    <button title={`Search terminal (${shortcut})`} aria-label="Search terminal" onClick={()=>{setSearching(true);searchInput.current?.focus()}}><Search size={16}/></button>
    {!session.local&&<button className="button" disabled={!connected} onClick={onSftp}><FolderOpen size={15}/>Open SFTP</button>}
-   {connected?<button className="button" onClick={()=>action('terminal:cancelReconnect')}>Disconnect</button>:pending||waiting?<button className="button" disabled={session.status==='cancelling'} onClick={()=>action('terminal:cancelReconnect')}>Cancel reconnect</button>:<button className="button" title="Start a new session; previous commands are not replayed" onClick={()=>action('terminal:reconnect')}><RefreshCw size={15}/>{session.local?'Restart shell':'Reconnect'}</button>}
+   {connected?<button className="button" disabled={pending} onClick={()=>action('terminal:cancelReconnect')}>Disconnect</button>:pending||waiting?<button className="button" disabled={session.status==='cancelling'} onClick={()=>action('terminal:cancelReconnect')}>Cancel reconnect</button>:<button className="button" title={session.sessionRef?"Resume remote tmux session; create an empty session if it ended":"Start a new session; previous commands are not replayed"} onClick={()=>action('terminal:reconnect')}><RefreshCw size={15}/>{session.local?'Restart shell':'Reconnect'}</button>}
+   {session.sessionRef&&<button className="button" disabled={!connected||pending} onClick={()=>{if(window.confirm('End this remote tmux session and stop its running processes? Other terminals attached to this same session will also disconnect.'))action('terminal:terminate')}}>End remote session</button>}
    <button title="Clear terminal" onClick={()=>{term.current?.clear();search.current?.clearDecorations();setResult(null)}}><Trash2 size={15}/></button>
   </div></div>
   {searching&&<form className="terminal-search" role="search" aria-label="Search terminal scrollback" onSubmit={e=>{e.preventDefault();find()}} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeSearch()}else if(e.key==='Enter'&&e.shiftKey){e.preventDefault();find(true)}}}>
@@ -62,6 +63,6 @@ export function TerminalPane({session,visible,fontSize,buffers,terminalRefs,noti
   </form>}
   <div className="terminal-container" ref={el}/>
   <div className="terminal-connection"><span className={'connection-label '+(connected?'connected':'')} role="status"><i className={'dot '+(connected?'online':'')}/>{label}</span>{!session.local&&<label title="Retry dropped SSH connections up to five times. Authentication may be requested again."><input type="checkbox" checked={!!session.autoReconnect} onChange={e=>action('terminal:autoReconnect',{enabled:e.target.checked})}/>Auto reconnect this tab</label>}</div>
-  {!connected&&<div className="terminal-disconnected">{session.error&&<p>{session.error}</p>}<p>{pending||waiting?'You can cancel at any time. Authentication may be requested again.':'Scrollback is preserved. Reconnect opens a new shell; use tmux on the server to preserve a remote session.'}</p></div>}
+  {!connected&&<div className="terminal-disconnected">{session.error&&<p>{session.error}</p>}<p>{pending||waiting?'You can cancel at any time. Authentication may be requested again.':session.sessionRef?'Disconnect leaves the remote session running. Reconnect resumes it, or creates an empty session if it has ended. No commands are replayed.':'Scrollback is preserved. Reconnect opens a new shell; enable tmux in host settings to preserve future sessions.'}</p></div>}
  </section>
 }

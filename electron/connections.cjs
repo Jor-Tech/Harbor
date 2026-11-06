@@ -9,6 +9,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const {forwardConfig, serveSocks, bridge} = require('./forwarding.cjs');
+const {validateSessionRef} = require('./persistent-session.cjs');
 
 function port(value, fallback, allowZero = false) {
   const result = value === undefined || value === '' ? fallback : Number(value);
@@ -200,20 +201,46 @@ class ConnectionManager {
     }
   }
 
-  async connect(host, credential, route = [], id) {
+  async _command(session, command) {
+    const stream = await this._request(session, done => session.client.exec(command, done));
+    return this._request(session, done => {
+      // Drain both streams, without retaining potentially sensitive output.
+      stream.resume(); stream.stderr.resume();
+      stream.on('error', done);
+      stream.on('close', code => done(code === 0 ? null : new Error('Remote session command failed')));
+    });
+  }
+
+  async terminatePersistent(id) {
+    const session = this._session(id);
+    const name = validateSessionRef(session.sessionRef);
+    // Keep the SSH transport open until the kill command has acknowledged success.
+    session.terminating = true;
+    try { await this._command(session, `tmux kill-session -t '=${name}'`); }
+    finally { session.terminating = false; }
+  }
+
+  async connect(host, credential, route = [], id, sessionRef) {
+    if (sessionRef !== undefined) validateSessionRef(sessionRef);
     const session = await this._open(host, credential, 'ssh', route, id);
     try {
-      session.stream = await this._request(session, done => session.client.shell({ term: 'xterm-256color', cols: 100, rows: 30 }, done));
+      const pty = {term:'xterm-256color', cols:100, rows:30};
+      if (sessionRef) {
+        try { await this._command(session, 'command -v tmux >/dev/null 2>&1'); }
+        catch (error) { if (session.closed) throw error; throw new Error('tmux is unavailable on this host. Install it yourself or disable persistent sessions in host settings.'); }
+        session.sessionRef = sessionRef;
+        session.stream = await this._request(session, done => session.client.exec(`exec tmux new-session -A -s '${sessionRef}'`, {pty}, done));
+      } else session.stream = await this._request(session, done => session.client.shell(pty, done));
       if (session.closed) { session.stream.close(); throw new Error('Connection was closed'); }
       session.stream.setEncoding('utf8');
       session.stream.on('data', data => { if (!session.closed) this.emit('terminal:data', { id: session.id, data }); });
       session.stream.stderr.setEncoding('utf8');
       session.stream.stderr.on('data', data => { if (!session.closed) this.emit('terminal:data', { id: session.id, data }); });
       session.stream.on('error', error => this._finish(session, error));
-      session.stream.on('exit', () => { session.shellExited = true; });
+      session.stream.on('exit', code => { session.shellExited = true; if (sessionRef && code && !session.terminating) this._finish(session, new Error('tmux could not start or attach. Check the terminal output and remote tmux configuration.'), 'exit'); });
       // A transport loss also closes its channels. Let the client close event
       // identify that case before treating a channel-only close as shell exit.
-      session.stream.on('close', () => setImmediate(() => this._finish(session, undefined, 'exit')));
+      session.stream.on('close', () => setImmediate(() => { if (!session.terminating) this._finish(session, undefined, 'exit'); }));
       this._status(session, 'connected');
       await Promise.resolve().then(() => this.recordHistory({ hostId: host.id, label: session.label, hostname: host.hostname || host.address, connectedAt: new Date().toISOString() })).catch(() => {});
       if (session.closed) throw new Error('Connection was closed');
