@@ -12,7 +12,7 @@ class BackupManagement {
   clear() { this.snapshots.clear(); }
   async directory(folder, optional=false) {
     let stat;
-    try { stat=await fs.lstat(folder); } catch(e) { if(optional&&e.code==='ENOENT')return null; if(['ENOENT','ENOTDIR'].includes(e.code))throw new Error('This backup location is unavailable. Reconnect it, then refresh the list.'); throw e; }
+    try { stat=await fs.lstat(folder,{bigint:true}); } catch(e) { if(optional&&e.code==='ENOENT')return null; if(['ENOENT','ENOTDIR'].includes(e.code))throw new Error('This backup location is unavailable. Reconnect it, then refresh the list.'); throw e; }
     if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('Backup locations must be available local directories, not symbolic links.');
     return {path:folder,real:await fs.realpath(folder),identity:identity(stat)};
   }
@@ -40,13 +40,13 @@ class BackupManagement {
     const protectedFiles=[v.path];
     if(scope==='shared')protectedFiles.push(path.join(folder,`${v._envelope.id}.harbor-vault`));
     const protectedIdentities=new Set();
-    for(const file of protectedFiles)try{protectedIdentities.add(identity(await fs.stat(file)))}catch(e){if(e.code!=='ENOENT')throw e}
+    for(const file of protectedFiles)try{protectedIdentities.add(identity(await fs.stat(file,{bigint:true})))}catch(e){if(e.code!=='ENOENT')throw e}
     const files=[];
     for(const entry of entries) {
       try {
-        const stat=await fs.lstat(entry.file);
+        const stat=await fs.lstat(entry.file,{bigint:true});
         if(!stat.isFile()||stat.isSymbolicLink()||protectedFiles.includes(entry.file)||protectedIdentities.has(identity(stat)))continue;
-        files.push({...entry,size:stat.size,createdAt:entry.createdAt??stat.mtimeMs,dateSource:entry.createdAt?'filename':'modified',identity:identity(stat)});
+        files.push({...entry,size:Number(stat.size),createdAt:entry.createdAt??Number(stat.mtimeMs),dateSource:entry.createdAt?'filename':'modified',identity:identity(stat)});
       } catch(e) { if(e.code!=='ENOENT')throw e; }
     }
     files.sort((a,b)=>b.createdAt-a.createdAt||b.id.localeCompare(a.id));
