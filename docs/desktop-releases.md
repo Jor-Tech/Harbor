@@ -16,9 +16,9 @@ Quit the running app, install the new package, reopen it, and confirm the versio
 
 ## Publish a version
 
-1. Update `package.json` and `package-lock.json` to the same version, and add `docs/releases/<version>.md`. Include changes, installation instructions and any preview limitations.
+1. Update `package.json` and `package-lock.json` to the same version, and add `docs/releases/<version>.md`. Include changes, installation instructions and known limitations.
 2. Open a PR and wait for **Linux checks** to pass. This checks backend tests, the renderer build and source desktop workflows without packaging. For an early cross-platform check, manually run **Desktop previews** against the PR branch; it builds all four targets and validates the complete asset set without publishing.
-3. Merge to `main`. After checking the intended commit, create and push its exact version tag, for example `v0.4.0-alpha.1`. Use the normal signed-tag workflow if configured. Do not move or reuse release tags.
+3. Merge to `main`. After checking the intended commit, create and push its exact version tag, for example `v0.4.0`. Use the normal signed-tag workflow if configured. Do not move or reuse release tags.
 4. The **Desktop release** workflow rejects mismatched tags or commits outside `main`, runs the complete desktop pipeline at the tagged commit, and publishes only after all four desktop jobs and **Complete release assets** succeed. That final validation combines the real platform artifacts and checks installer names, checksums, versions and source commits.
 
 Merging to `main` does not start another build. Full platform builds run only for manual previews and release tags, keeping routine development Actions usage to one Linux PR job. Platform-specific failures can therefore first appear during a manual preview or release; a failed release build never publishes incomplete installers.
@@ -37,8 +37,8 @@ Windows and macOS installer lifecycle checks still require representative device
 
 ## Signing and visibility
 
-These remain unsigned previews (macOS ad-hoc signed, not notarized). Checksums help detect changed bytes; they do not establish publisher identity. OS warnings and Gatekeeper restrictions remain possible. Publisher signing, notarization and automatic update installation are separate work. Do not disable system-wide protections to install a preview.
+Installers are not publisher-signed (macOS ad-hoc signed, not notarized), including releases without a prerelease suffix. Checksums help detect changed bytes; they do not establish publisher identity. OS warnings and Gatekeeper restrictions remain possible. Publisher signing, notarization and automatic update installation are separate work. Do not disable system-wide protections to install Harbor.
 
-## Preview readiness
+## Release readiness
 
 Review [validation and device checks](validation.md) and explicitly record untested scenarios for each release. Automated platform builds do not establish real password-manager approval, suspend/resume or interactive installer behavior. See [vault backup and recovery](vault-recovery.md) for recovery behavior and password requirements.

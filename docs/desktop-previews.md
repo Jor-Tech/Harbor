@@ -1,8 +1,8 @@
-# Desktop previews
+# Desktop builds and installation
 
-Harbor 0.3 previews target Linux x64, Windows x64, macOS x64 and macOS arm64.
-Windows ARM, Linux ARM and mobile are outside this first preview matrix.
-These are development previews, not signed production releases.
+Harbor 0.4 targets Linux x64, Windows x64, macOS x64 and macOS arm64.
+Windows ARM, Linux ARM and mobile are outside the supported build matrix.
+Versioned releases and development previews use the same build pipeline. Installers are not publisher-signed; macOS builds are ad-hoc signed and not notarized.
 
 ## Download
 
@@ -20,28 +20,30 @@ If you previously used this repository's `scripts/install-desktop.sh`, run it on
 
 Preview.1 packaged only a 1024-pixel icon, which some hicolor themes do not index. Preview.2 includes standard sizes from 16 to 512 pixels, an explicit desktop identity, and a window icon. CI inspects the DEB's launcher and icon files as well as testing the packaged application.
 
-| Platform | Output | Preview limitations |
+| Platform | Output | Installation limitations |
 | --- | --- | --- |
 | Linux x64 | AppImage, DEB | AppImage may require executable permission and FUSE support. DEB is for Debian/Ubuntu distributions. |
 | Windows x64 | NSIS EXE installer | No publisher signature; Windows may show an unknown-publisher/SmartScreen warning. |
 | macOS Intel | DMG, ZIP | Ad-hoc signature only; no Developer ID signature or Apple notarization. |
 | macOS Apple Silicon | DMG, ZIP | Ad-hoc signature only; no Developer ID signature or Apple notarization. |
 
-On macOS an ad-hoc signature allows native code to execute but does not establish a trusted publisher. Downloaded previews may be blocked by Gatekeeper. Do not disable OS-wide security protections. Signing and notarization are a later release task.
+On macOS an ad-hoc signature allows native code to execute but does not establish a trusted publisher. Downloaded builds may be blocked by Gatekeeper. Do not disable OS-wide security protections. Signing and notarization are a later release task.
 
 ## What the pipeline verifies
 
-Pull requests run **Pull request checks / Linux checks**: locked dependency installation, backend tests, the renderer build, native Electron dependency preparation, and all thirteen source desktop smoke workflows on Linux. This job does not package or upload installers. Superseded PR checks are cancelled. Merges and other pushes to `main` do not trigger another build. If branch protection is enabled, require **Linux checks**, not the manually triggered platform jobs.
+Pull requests run **Pull request checks / Linux checks**: locked dependency installation, backend tests, the renderer build, native Electron dependency preparation, and all source desktop smoke workflows on Linux. This job does not package or upload installers. Superseded PR checks are cancelled. Merges and other pushes to `main` do not trigger another build. If branch protection is enabled, require **Linux checks**, not the manually triggered platform jobs.
 
 Manual **Desktop previews** runs and release tags execute the full native runner matrix. Request a manual preview before merging changes to packaging, native dependencies, or Windows/macOS-specific behavior when early platform validation is useful. Otherwise the next release validates those platforms. Each full-build job:
 
 1. Installs the lockfile with Node 24.11.0 and applies the verified ssh2 MFA correction.
 2. Runs backend tests, including real loopback SSH/SFTP, agent signing followed by MFA, and a common encrypted vault fixture.
-3. Rebuilds native modules for Electron and runs the thirteen desktop smoke workflows with temporary profiles.
+3. Rebuilds native modules for Electron and runs all desktop smoke workflows with temporary profiles.
 4. Packages for the runner's native architecture.
 5. Runs the same desktop workflows against the packaged executable, then generates checksums and uploads installers.
 
 The Windows job also compiles the installer hooks and executes destination-validation checks against disposable folders, including an NTFS write denial. The installer rejects Program Files for per-user installs before replacing an existing version. Other custom destinations are allowed when the preflight can write to the nearest existing directory. For Program Files choose installation for all users and approve UAC.
+
+The Linux job also runs `npm run test:tmux` against a disposable OpenSSH/tmux Docker fixture to verify process survival, remote session identity, lock/unlock restoration and targeted termination.
 
 The synthetic agent uses Unix sockets on Linux/macOS and a Windows named pipe on Windows. Unix permission assertions run on Unix; Windows access controls have different semantics. The common vault fixture contains only a synthetic `.example.test` host and uses the public test password `portable-fixture-password`.
 
@@ -73,6 +75,6 @@ CI validates synthetic authentication and packaged startup; it does not certify 
 - Transfer nested directories and overwrite/cancel safely; include Windows drive and UNC paths when applicable.
 - Import the same encrypted vault on another OS and exercise two-device sync/conflict resolution with disposable data first. Device-specific custom agent paths and local terminal environments are not portable; use the 1Password provider to select its endpoint per OS.
 
-Preview support should remain labelled provisional until these checks are complete. Publisher-signed desktop releases, automatic updates, and mobile clients are separate milestones.
+Platform support claims should reflect the device checks actually completed. Publisher-signed desktop releases, automatic updates, and mobile clients are separate milestones.
 
 For hands-on preview testing, follow [validation and device checks](validation.md). Vault recovery is described in [Backup and recovery](vault-recovery.md).

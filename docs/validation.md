@@ -1,6 +1,6 @@
 # Validation and device checks
 
-Harbor is preview software. Automated tests use temporary profiles, synthetic credentials and disposable local SSH/SFTP servers. They do not require access to a user's vault or production servers.
+Automated tests use temporary profiles, synthetic credentials and disposable local SSH/SFTP servers. They do not require access to a user's vault or production servers.
 
 ## Automated coverage
 
@@ -29,7 +29,9 @@ Interactive Windows/macOS installer behavior, real password-manager integrations
 
 `npm run test:session-restore-ui` covers the per-host opt-in, distinct split-pane sessions, saved encrypted references, reconnect, restoration after app restart, confirmation before termination, and vault lock/unlock tab restoration without a saved workspace or automatic connection. It also checks failed unlock, repeated lock, cleared scrollback and fresh MFA after unlock. `tests/terminal-sessions.test.cjs` also covers missing tmux, invalid references, host preference changes, MFA and host-key rejection. These tests use a disposable SSH server emulating tmux protocol behavior; they do not claim to validate a real tmux build or a user's tmux configuration.
 
-For a real-server check, enable the option on a disposable POSIX SSH account with tmux already installed. Start a long-running command, save a split workspace, disconnect, restart Harbor and restore it. Verify the same processes continue and no command is repeated. End one remote session and confirm the other survives. Repeat with unavailable tmux and a changed host key. Harbor does not install tmux as part of testing or connection setup.
+`npm run test:tmux` builds a disposable Docker fixture containing OpenSSH and tmux, using a temporary SSH key and a loopback-only port. It checks real process survival, separate sessions, reconnect, lock/unlock restoration, reopening a saved reference, targeted termination, host-key rejection and unavailable tmux. It removes its container and temporary key afterward; the test image remains cached. Docker and `ssh-keygen` are required. This fixture installation is isolated from the host machine and from user SSH servers.
+
+For a hands-on real-server check, enable the option on a disposable POSIX SSH account with tmux already installed. Start a long-running command, save a split workspace, disconnect, restart Harbor and restore it. Verify the same processes continue and no command is repeated. End one remote session and confirm the other survives. Repeat with unavailable tmux and a changed host key. Harbor never installs tmux on connected hosts.
 
 On Linux/Wayland, if the native clipboard smoke test cannot own the clipboard, run `HARBOR_TEST_X11=1 npm run test:terminal-ui` with XWayland available. If npm skipped native install scripts, build the existing terminal dependency with `node_modules/.bin/electron-rebuild -f -o node-pty` before desktop checks. These are local test-environment steps, not changes to SSH servers.
 

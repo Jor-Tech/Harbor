@@ -1,6 +1,6 @@
 {
   "name": "harbor-terminal",
-  "version": "0.4.0-alpha.13",
+  "version": "0.4.0",
   "private": true,
   "description": "An independent SSH workspace with an encrypted, file-synced vault",
   "main": "electron/main.cjs",
@@ -42,7 +42,8 @@
     "test:mcp-approval-ux-ui": "node scripts/mcp-approval-ux-smoke.cjs",
     "test:mcp-approval-matrix-ui": "node scripts/mcp-approval-matrix-smoke.cjs",
     "test:session-restore-ui": "node scripts/session-restore-smoke.cjs",
-    "test:command-palette-ui": "node scripts/command-palette-smoke.cjs"
+    "test:command-palette-ui": "node scripts/command-palette-smoke.cjs",
+    "test:tmux": "node scripts/tmux-integration.cjs"
   },
   "build": {
     "appId": "local.harbor.terminal",

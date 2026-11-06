@@ -12,7 +12,7 @@ Manage hosts, open terminals, transfer files and sync your encrypted vault throu
 
 *The workspace above uses fictional example hosts. No real server or account details are shown.*
 
-> **Preview software:** Harbor is in alpha. Installers are not publisher-signed; macOS builds are ad-hoc signed and not notarized. Your operating system may warn or block installation. Keep a separate encrypted vault backup and review the release notes before upgrading. Do not disable system-wide protections to install a preview.
+> **Installation:** Installers are not publisher-signed; macOS builds are ad-hoc signed and not notarized. Your operating system may warn or block installation. Keep a separate encrypted vault backup and review the release notes before upgrading. Do not disable system-wide protections to install Harbor.
 
 ## Download and install
 
