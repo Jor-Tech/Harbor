@@ -27,7 +27,7 @@ Interactive Windows/macOS installer behavior, real password-manager integrations
 
 ## Persistent-session checks
 
-`npm run test:session-restore-ui` covers the per-host opt-in, distinct split-pane sessions, saved encrypted references, reconnect, restoration after app restart, confirmation before termination, and vault lock. `tests/terminal-sessions.test.cjs` also covers missing tmux, invalid references, host preference changes, MFA and host-key rejection. These tests use a disposable SSH server emulating tmux protocol behavior; they do not claim to validate a real tmux build or a user's tmux configuration.
+`npm run test:session-restore-ui` covers the per-host opt-in, distinct split-pane sessions, saved encrypted references, reconnect, restoration after app restart, confirmation before termination, and vault lock/unlock tab restoration without a saved workspace or automatic connection. It also checks failed unlock, repeated lock, cleared scrollback and fresh MFA after unlock. `tests/terminal-sessions.test.cjs` also covers missing tmux, invalid references, host preference changes, MFA and host-key rejection. These tests use a disposable SSH server emulating tmux protocol behavior; they do not claim to validate a real tmux build or a user's tmux configuration.
 
 For a real-server check, enable the option on a disposable POSIX SSH account with tmux already installed. Start a long-running command, save a split workspace, disconnect, restart Harbor and restore it. Verify the same processes continue and no command is repeated. End one remote session and confirm the other survives. Repeat with unavailable tmux and a changed host key. Harbor does not install tmux as part of testing or connection setup.
 

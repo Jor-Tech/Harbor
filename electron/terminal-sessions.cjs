@@ -12,6 +12,7 @@ class TerminalSessions {
     this.delays = delays;
     this.stableMs = stableMs;
     this.tabs = new Map();
+    this.suspended = null;
     this.emit = manager.emit;
     manager.emit = (name, event) => {
       const tab = this.tabs.get(event.id);
@@ -30,7 +31,36 @@ class TerminalSessions {
     };
     // Lock, suspend, import, and app shutdown all use this same cancellation path.
     const closeAll = manager.closeAll.bind(manager);
-    manager.closeAll = () => { for (const id of [...this.tabs.keys()]) this.close(id); closeAll(); };
+    manager.closeAll = ({preservePersistent = false, vaultId} = {}) => {
+      if (!preservePersistent) this.suspended = null;
+      else if (vaultId) {
+        this.suspended = {vaultId, tabs:[...this.tabs.values()]
+          .filter(tab => tab.sessionRef && tab.reference?.hostId && tab.label && tab.event?.reason !== 'ended')
+          .map(tab => ({id:tab.id, hostId:tab.reference.hostId, sessionRef:tab.sessionRef}))};
+      }
+      for (const id of [...this.tabs.keys()]) this.close(id);
+      closeAll();
+    };
+  }
+
+  // Called only after the same vault has been unlocked. Recreate inert tabs,
+  // not connections; credentials and remote identity checks are resolved afresh
+  // when the user chooses Reconnect. No labels, buffers or credentials survive lock.
+  restoreSuspended(hosts, vaultId) {
+    const snapshot = this.suspended;
+    this.suspended = null;
+    if (!vaultId || snapshot?.vaultId !== vaultId) return [];
+    const restored = [];
+    for (const saved of snapshot.tabs) {
+      const host = hosts.find(h => h.id === saved.hostId && h.persistentSession === true);
+      if (!host) continue;
+      const tab = {id:saved.id, reference:{hostId:host.id}, sessionRef:saved.sessionRef,
+        label:host.label, local:false, autoReconnect:false, attempt:0, epoch:0, pending:false};
+      this.tabs.set(tab.id, tab);
+      this.publish(tab, 'closed', {reason:'locked'});
+      restored.push({id:tab.id, hostId:host.id, label:tab.label, local:false, ...tab.event});
+    }
+    return restored;
   }
 
   publish(tab, status, extra = {}) {

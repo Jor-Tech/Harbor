@@ -220,6 +220,7 @@ class Vault {
     if (digest(await readFile(this.path)) !== this._hash) throw new Error('Vault changed on disk. Lock and unlock it before saving.');
   }
   async status() { return { exists: await exists(this.path), locked: !this._key, path: this.path }; }
+  get identity() { return this._key ? this._envelope?.id : null; }
   lock() { this.backupManagement.clear(); ++this._epoch; this._recoveryPreview = null; this._key?.fill(0); this._key = null; this._data = null; this._envelope = null; this._hash = null; }
   async _backupDirectory(create = false) {
     const directory = `${this.path}.backups`;

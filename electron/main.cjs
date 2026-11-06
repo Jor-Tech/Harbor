@@ -41,7 +41,7 @@ async function touch() {
   const generation=++touchGeneration;clearTimeout(timer);
   try { const d = await vault.read(); if(generation!==touchGeneration||d.settings.autoLockMinutes===0)return;const minutes = Math.max(1, Math.min(240, Number(d.settings.autoLockMinutes) || 15)); timer = setTimeout(lock, minutes * 60_000); } catch {}
 }
-function lock() { ++touchGeneration; mcp?.pause(); clearInterval(retentionTimer); sshImportPreview=null; ++syncEpoch; syncer?.configure({unlocked:false}); ++lockGeneration; clearTimeout(timer); authPrompts?.cancelAll(); files?.cancelAll(); connections?.closeAll(); vault?.lock(); send('vault:locked', {}); }
+function lock() { ++touchGeneration; mcp?.pause(); clearInterval(retentionTimer); sshImportPreview=null; ++syncEpoch; syncer?.configure({unlocked:false}); ++lockGeneration; clearTimeout(timer); authPrompts?.cancelAll(); files?.cancelAll(); connections?.closeAll({preservePersistent:true,vaultId:vault?.identity}); vault?.lock(); send('vault:locked', {}); }
 async function edit(fn) { return serialize(async () => { const d = await vault.read(); await fn(d); const saved=await vault.save(d); syncer?.schedule(); return saved; }); }
 async function saveDevice(next) {
   const file=path.join(app.getPath('userData'),'device.json'),temp=file+'.'+randomUUID()+'.tmp';
@@ -105,7 +105,7 @@ async function invoke(action, args = {}, generation = lockGeneration) {
     case 'auth:answer': await vault.read(); assertGeneration(generation); authPrompts.answer(args.id,args.answers); return true;
     case 'vault:status': return vault.status();
     case 'vault:create': { const d = await serialize(() => { assertGeneration(generation); return vault.create(args.password); }); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return d; }
-    case 'vault:unlock': { const d = await serialize(() => { assertGeneration(generation); return vault.unlock(args.password); }); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return d; }
+    case 'vault:unlock': { const d = await serialize(() => { assertGeneration(generation); return vault.unlock(args.password); }); assertGeneration(generation); const restoredTerminals=terminals.restoreSuspended(d.hosts,vault.identity); syncer.configure({enabled:device.autoSync===true,unlocked:true}); startBackupCleanup(); touch(); return {...d,restoredTerminals}; }
     case 'vault:lock': lock(); return true;
     case 'vault:read': return vault.read();
     case 'vault:security': return vault.encryptionInfo();

@@ -153,3 +153,51 @@ test('termination is serialized, and cancellation while ending cannot leave a pe
  f.tabs.cancel(tab.id);finish();await end;
  assert.equal(f.tabs.get(tab.id).pending,false);assert.equal(f.tabs.get(tab.id).status,'closed');
 });
+
+test('lock retains only persistent saved-host references and unlock creates disconnected tabs without authentication',async t=>{
+ const f=await fixture(t);f.server.host.persistentSession=true;
+ const first=await f.tabs.open({hostId:'host'}),second=await f.tabs.open({hostId:'host'});
+ await f.tabs.open({host:{...f.server.host,password:'do-not-retain'}});
+ f.manager.write(first.id,'keep-running');await until(()=>f.server.received.length);
+ f.tabs.setAutoReconnect(first.id,true);
+ const connections=f.server.state.connections;
+ f.manager.closeAll({preservePersistent:true,vaultId:'vault-a'});
+ assert.equal(f.manager.sessions.size,0);assert.equal(f.tabs.tabs.size,0);
+ assert.deepEqual(f.tabs.suspended,{vaultId:'vault-a',tabs:[
+  {id:first.id,hostId:'host',sessionRef:first.sessionRef},
+  {id:second.id,hostId:'host',sessionRef:second.sessionRef},
+ ]});
+ // A repeated screen-lock event must not discard the remembered tabs.
+ f.manager.closeAll({preservePersistent:true});
+ const restored=f.tabs.restoreSuspended([{id:'host',label:'Fresh vault label',persistentSession:true}],'vault-a');
+ assert.equal(restored.length,2);assert(restored.every(s=>s.status==='closed'&&s.reason==='locked'&&!s.pending&&!s.autoReconnect));
+ assert.equal(restored[0].label,'Fresh vault label');assert.equal(f.server.state.connections,connections);assert.equal(f.manager.sessions.size,0);
+ assert.throws(()=>f.manager.write(first.id,'must-not-send'),/closed/);
+ await f.tabs.reconnect(first.id);assert.equal(f.tabs.get(first.id).sessionRef,first.sessionRef);
+ assert.deepEqual(f.server.state.persistent.get(first.sessionRef).input,['keep-running']);
+});
+test('restored tabs cannot cross vault identities or survive replacement, deleted hosts or explicit termination',async t=>{
+ const f=await fixture(t);f.server.host.persistentSession=true;const hosts=[{id:'host',label:'Host',persistentSession:true}];
+ await f.tabs.open({hostId:'host'});f.manager.closeAll({preservePersistent:true,vaultId:'a'});
+ assert.deepEqual(f.tabs.restoreSuspended(hosts,'b'),[]);
+ await f.tabs.open({hostId:'host'});f.manager.closeAll({preservePersistent:true,vaultId:'a'});f.manager.closeAll();
+ assert.deepEqual(f.tabs.restoreSuspended(hosts,'a'),[]);
+ for(const changed of [[],[{...hosts[0],persistentSession:false}]]){
+  await f.tabs.open({hostId:'host'});f.manager.closeAll({preservePersistent:true,vaultId:'a'});
+  assert.deepEqual(f.tabs.restoreSuspended(changed,'a'),[]);
+ }
+ const ended=await f.tabs.open({hostId:'host'});await f.tabs.terminate(ended.id);
+ f.manager.closeAll({preservePersistent:true,vaultId:'a'});assert.deepEqual(f.tabs.restoreSuspended(hosts,'a'),[]);
+});
+test('lock during persistent reconnect MFA restores an inert tab, with no stale prompt or retry',async t=>{
+ const f=await fixture(t);f.server.host.persistentSession=true;
+ const tab=await f.tabs.open({hostId:'host'});f.tabs.setAutoReconnect(tab.id,true);f.server.state.otp=true;f.server.drop();
+ await until(()=>f.prompts.pending.size);
+ f.manager.closeAll({preservePersistent:true,vaultId:'a'});
+ const restored=f.tabs.restoreSuspended([{id:'host',label:'Host',persistentSession:true}],'a');
+ await until(()=>!f.prompts.pending.size);await sleep(100);
+ assert.equal(restored.length,1);assert.equal(f.tabs.get(tab.id).status,'closed');assert.equal(f.manager.sessions.size,0);assert.equal(f.reads(),2);
+ const retry=f.tabs.reconnect(tab.id);await until(()=>f.prompts.pending.size);
+ f.prompts.answer([...f.prompts.pending.keys()][0],['123456']);await retry;
+ assert.equal(f.tabs.get(tab.id).status,'connected');assert.equal(f.tabs.get(tab.id).sessionRef,tab.sessionRef);
+});
