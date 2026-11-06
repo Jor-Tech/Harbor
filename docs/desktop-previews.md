@@ -8,7 +8,7 @@ Versioned releases and development previews use the same build pipeline. Install
 
 For versioned releases, use [GitHub Releases](https://github.com/Jor-Tech/Harbor/releases), also available from **Settings → Releases & updates**. Public release downloads need no repository membership; private downloads require an authorized account. Release assets do not use the 3-day CI artifact retention policy. See [release publishing and upgrade checks](desktop-releases.md).
 
-Open [Desktop previews in GitHub Actions](https://github.com/Jor-Tech/Harbor/actions/workflows/desktop-preview.yml), choose **Run workflow**, select the desired branch, and start the build. Once it succeeds, download its platform artifact at the bottom of the run page. Private-repository downloads require GitHub access. New artifacts expire after 3 days; existing artifacts keep their original expiration. PRs and merges do not automatically generate installers.
+Pushes to `release/**` branches automatically start [Desktop previews in GitHub Actions](https://github.com/Jor-Tech/Harbor/actions/workflows/desktop-preview.yml). For another branch, choose **Run workflow**, select the desired branch, and start the build. Once it succeeds, download its platform artifact at the bottom of the run page. Private-repository downloads require GitHub access. New artifacts expire after 3 days; existing artifacts keep their original expiration. Opening a PR or merging to `main` alone does not generate installers.
 
 Each artifact contains installers, `SHA256SUMS.txt`, and `BUILD.json` with the source commit and CPU architecture. A failing platform uploads no installer artifact; other successful platforms remain available. Checksums detect accidental changes; they are not a publisher signature.
 
@@ -33,7 +33,7 @@ On macOS an ad-hoc signature allows native code to execute but does not establis
 
 Pull requests run **Pull request checks / Linux checks**: locked dependency installation, backend tests, the renderer build, native Electron dependency preparation, and all source desktop smoke workflows on Linux. This job does not package or upload installers. Superseded PR checks are cancelled. Merges and other pushes to `main` do not trigger another build. If branch protection is enabled, require **Linux checks**, not the manually triggered platform jobs.
 
-Manual **Desktop previews** runs and release tags execute the full native runner matrix. Request a manual preview before merging changes to packaging, native dependencies, or Windows/macOS-specific behavior when early platform validation is useful. Otherwise the next release validates those platforms. Each full-build job:
+Pushes to `release/**`, manual **Desktop previews** runs and release tags execute the full native runner matrix. Use a release branch or request a manual preview before merging changes to packaging, native dependencies, or Windows/macOS-specific behavior when early platform validation is useful. Each full-build job:
 
 1. Installs the lockfile with Node 24.11.0 and applies the verified ssh2 MFA correction.
 2. Runs backend tests, including real loopback SSH/SFTP, agent signing followed by MFA, and a common encrypted vault fixture.

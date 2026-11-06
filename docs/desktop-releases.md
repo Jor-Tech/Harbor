@@ -17,11 +17,11 @@ Quit the running app, install the new package, reopen it, and confirm the versio
 ## Publish a version
 
 1. Update `package.json` and `package-lock.json` to the same version, and add `docs/releases/<version>.md`. Include changes, installation instructions and known limitations.
-2. Open a PR and wait for **Linux checks** to pass. This checks backend tests, the renderer build and source desktop workflows without packaging. For an early cross-platform check, manually run **Desktop previews** against the PR branch; it builds all four targets and validates the complete asset set without publishing.
+2. Push a `release/<version>` branch and open a PR. Wait for **Linux checks**, **Secret checks**, and **Desktop previews** to pass on the latest commit. Release-branch pushes automatically build all four targets and validate the complete asset set without publishing. Other branches can start **Desktop previews** manually.
 3. Merge to `main`. After checking the intended commit, create and push its exact version tag, for example `v0.4.0`. Use the normal signed-tag workflow if configured. Do not move or reuse release tags.
 4. The **Desktop release** workflow rejects mismatched tags or commits outside `main`, runs the complete desktop pipeline at the tagged commit, and publishes only after all four desktop jobs and **Complete release assets** succeed. That final validation combines the real platform artifacts and checks installer names, checksums, versions and source commits.
 
-Merging to `main` does not start another build. Full platform builds run only for manual previews and release tags, keeping routine development Actions usage to one Linux PR job. Platform-specific failures can therefore first appear during a manual preview or release; a failed release build never publishes incomplete installers.
+Merging to `main` does not start another desktop build. Full platform builds run for release-branch pushes, manual previews and release tags; routine feature PRs run Linux checks and the secrets scan. A new push cancels an older preview for the same branch. A failed release build never publishes incomplete installers.
 
 The build jobs have read-only repository permissions. Only the final publish job receives `contents: write`, using the built-in GitHub Actions token. No personal access token or publisher-signing credentials are needed. The pipeline validates all four platform manifests and all seven installers, assembles one `SHA256SUMS.txt` and `BUILDS.json`, creates a draft, uploads the complete asset set, and publishes it. Versions with a prerelease suffix are marked as GitHub prereleases.
 
