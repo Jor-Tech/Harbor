@@ -25,6 +25,7 @@
     "test:sync-ui": "node scripts/sync-smoke.cjs",
     "test:hosts-ui": "node scripts/hosts-smoke.cjs",
     "test:release-ui": "node scripts/release-smoke.cjs",
+    "test:whats-new-ui": "node scripts/whats-new-smoke.cjs",
     "test:recovery-ui": "node scripts/recovery-smoke.cjs",
     "test:protection-ui": "node scripts/protection-smoke.cjs",
     "test:windows-installer": "node scripts/check-windows-installer.cjs",

@@ -14,9 +14,19 @@ Harbor does not download or install updates or restart itself. Disabling automat
 
 Quit the running app, install the new package, reopen it, and confirm the version in Settings. Export an encrypted backup from **Vault & sync** when a separate recovery copy is desired. Keep the same Harbor data directory; app replacement and vault import are different operations. The existing data paths, application ID and vault format are unchanged.
 
+## What’s new in the installed version
+
+**Settings → Releases & updates → What’s new** opens short, offline release highlights with older versions expandable. The **Show what’s new after updates** switch is on by default and independent of network update checks. Its value and the last acknowledged version are stored only in `whats-new.json` in the device’s Harbor data directory; they are never synced with the vault.
+
+After a meaningful update, the overview opens once after unlocking, when the app is focused and idle and no other dialog is open. It combines skipped releases into one overview. Routine maintenance releases only add a **New** badge in Settings. Reading the overview marks the installed version as seen, including when opened manually. Closing it works with **Get started**, the close button or Escape. Turning automatic display off keeps the manual history available.
+
+The first launch with this feature establishes a baseline without showing historical announcements, including when upgrading from a build that did not track viewed releases. Development builds do not automatically show highlights or establish that baseline. Downgrades do not reset the last acknowledged version.
+
+`npm run test:whats-new-ui` covers installed-app behavior using an isolated fixture profile, including modal priority, restart persistence, opt-out, maintenance releases, first use and narrow/light/dark layouts. It is also included in the source and packaged desktop suites.
+
 ## Publish a version
 
-1. Update `package.json` and `package-lock.json` to the same version, and add `docs/releases/<version>.md`. Include changes, installation instructions and known limitations.
+1. Update `package.json` and `package-lock.json` to the same version, and add `docs/releases/<version>.md`. Include changes, installation instructions and known limitations. Also add an entry to `electron/release-notes.json`: version, release date (`YYYY-MM-DD`), short title, up to five plain-language `items`, and an explicit `meaningful` boolean. Use `true` for new user-facing features or important behavior changes, and `false` for routine maintenance. Keep older entries for the in-app history; tests require an entry for the running version. These highlights ship offline with the app, so review them before packaging.
 2. Push a `release/<version>` branch and open a PR. Wait for **Linux checks**, **Secret checks**, and **Desktop previews** to pass on the latest commit. Release-branch pushes automatically build all four targets and validate the complete asset set without publishing. Other branches can start **Desktop previews** manually.
 3. Merge to `main`. After checking the intended commit, create and push its exact version tag, for example `v0.4.0`. Use the normal signed-tag workflow if configured. Do not move or reuse release tags.
 4. The **Desktop release** workflow rejects mismatched tags or commits outside `main`, runs the complete desktop pipeline at the tagged commit, and publishes only after all four desktop jobs and **Complete release assets** succeed. That final validation combines the real platform artifacts and checks installer names, checksums, versions and source commits.

@@ -1,0 +1,24 @@
+[
+  {
+    "version": "0.4.1",
+    "date": "2026-11-07",
+    "title": "Desktop runtime update",
+    "meaningful": false,
+    "items": [
+      "Updated Harbor’s bundled desktop runtime. No separate runtime installation is needed.",
+      "Existing vaults, settings and SSH workflows stay the same."
+    ]
+  },
+  {
+    "version": "0.4.0",
+    "date": "2026-11-06",
+    "title": "Persistent sessions and quick navigation",
+    "meaningful": true,
+    "items": [
+      "Keep remote commands running after disconnecting with optional tmux sessions. Enable this per host; tmux must already be installed on the server.",
+      "Persistent tabs return after locking and unlocking Harbor. Choose Reconnect to resume your session.",
+      "Find hosts, terminals and workspaces with Ctrl+K, or Cmd+K on macOS.",
+      "Clearer broadcast controls and more reliable backup identification and background mode."
+    ]
+  }
+]

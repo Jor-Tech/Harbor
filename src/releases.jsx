@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {ExternalLink,RefreshCw,Download} from 'lucide-react';
+import {WhatsNewSettings} from './whats-new.jsx';
 
 export function useUpdates(call){
  const [state,setState]=useState(null),[error,setError]=useState(''),[saving,setSaving]=useState(false);
@@ -12,7 +13,7 @@ export function UpdateNotice({updates,onOpen}){
  if(updates.state?.phase!=='available')return null;
  return <button className="update-notice" title={`Harbor ${updates.state.latest.version} is available`} aria-label="View available update" onClick={onOpen}><Download size={15}/><span>Update available</span></button>;
 }
-export function Releases({call,updates}) {
+export function Releases({call,updates,news}) {
  const [info,setInfo]=useState(null),[error,setError]=useState(''),[opening,setOpening]=useState(false);
  const {state,saving,check,configure}=updates;
  useEffect(()=>{let active=true;call('releases:info').then(value=>{if(active)setInfo(value)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[call]);
@@ -30,6 +31,7 @@ export function Releases({call,updates}) {
     <div className="release-actions"><button className="button primary" disabled={!state||saving||state.phase==='checking'} onClick={check}><RefreshCw size={16}/>{state?.phase==='checking'?'Checking…':'Check now'}</button>{state?.phase==='available'&&<button className="button" disabled={opening} onClick={()=>open('updates:open')}><Download size={16}/>View update & download</button>}<button className="button" disabled={opening} onClick={()=>open('releases:open')}><ExternalLink size={16}/>View releases & downloads</button></div>
     <p className="release-hint">Checks contact GitHub for public release information. No vault data or credentials are sent. Preferences apply only to this device. Automatic checking is off by default.</p>
     <p className="release-hint">To update, quit Harbor, install the new version, then reopen it. Harbor never downloads, installs or restarts automatically. Your vault and local MCP settings stay on this device.</p>
+    <WhatsNewSettings news={news}/>
     {(error||updates.error)&&<p className="error" role="alert">{error||updates.error}</p>}
   </section>;
 }

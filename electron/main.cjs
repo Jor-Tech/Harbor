@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, powerMonitor, clipboard, Menu, shell, Tray } = require('electron');
 const {RELEASES_URL,releaseInfo}=require('./releases.cjs');
 const {UpdateChecker}=require('./update-checker.cjs');
+const {WhatsNew}=require('./whats-new.cjs');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { randomUUID } = require('node:crypto');
@@ -20,7 +21,7 @@ app.setName('Harbor');
 if (process.env.HARBOR_DATA_DIR) app.setPath('userData', path.resolve(process.env.HARBOR_DATA_DIR));
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.show();win.focus();}});
-let quitting = false, retentionTimer, mcp, tray, releaseRuntime, updates;
+let quitting = false, retentionTimer, mcp, tray, releaseRuntime, updates, whatsNew;
 let sshImportPreview, syncer, syncEpoch=0;
 let win, vault, connections, terminals, files, authPrompts, timer, touchGeneration = 0, lockGeneration = 0, device = {}, mutation = Promise.resolve();
 const assertGeneration = value => { if (value !== lockGeneration) throw new Error('Vault was locked during the operation'); };
@@ -100,6 +101,9 @@ async function invoke(action, args = {}, generation = lockGeneration) {
     case 'updates:check': return updates.check();
     case 'updates:configure': return serialize(()=>updates.configure(args));
     case 'updates:open': await shell.openExternal(updates.state.phase==='available'?updates.state.latest.url:RELEASES_URL);return true;
+    case 'whatsNew:status': return whatsNew.snapshot();
+    case 'whatsNew:configure': return serialize(()=>whatsNew.configure(args));
+    case 'whatsNew:acknowledge': return serialize(()=>whatsNew.acknowledge());
     case 'releases:info': return releaseInfo({version:app.getVersion(),platform:process.platform,arch:process.arch,packaged:app.isPackaged});
     case 'releases:open': await shell.openExternal(RELEASES_URL); return true;
     case 'auth:answer': await vault.read(); assertGeneration(generation); authPrompts.answer(args.id,args.answers); return true;
@@ -237,6 +241,8 @@ app.whenReady().then(async () => {
   try { const saved=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'device.json'),'utf8')); if(typeof saved.syncFolder==='string' && path.isAbsolute(saved.syncFolder))device.syncFolder=saved.syncFolder; device.autoSync=saved.autoSync===true; } catch {}
   updates=new UpdateChecker({dir:app.getPath('userData'),version:app.getVersion(),platform:process.platform,arch:process.arch,emit:state=>send('updates:changed',state)});
   await updates.load();
+  whatsNew=new WhatsNew({dir:app.getPath('userData'),version:app.getVersion(),packaged:app.isPackaged});
+  await whatsNew.load();
   vault = new Vault(path.join(app.getPath('userData'),'vault.hbr'));
   if(!(await vault.status()).exists)device.autoSync=false;
   syncer=new FolderSync({sync:synchronize,emit:state=>send('vault:syncStatus',state)});
