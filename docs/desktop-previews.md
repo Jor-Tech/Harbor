@@ -35,7 +35,7 @@ Pull requests run **Pull request checks / Linux checks**: locked dependency inst
 
 Pushes to `release/**`, manual **Desktop previews** runs and release tags execute the full native runner matrix. Use a release branch or request a manual preview before merging changes to packaging, native dependencies, or Windows/macOS-specific behavior when early platform validation is useful. Each full-build job:
 
-1. Installs the lockfile with Node 24.11.0 and applies the verified ssh2 MFA correction.
+1. Installs the lockfile with the Node.js version pinned in `.nvmrc` (26.13.0 LTS) and applies the verified ssh2 MFA correction.
 2. Runs backend tests, including real loopback SSH/SFTP, agent signing followed by MFA, and a common encrypted vault fixture.
 3. Rebuilds native modules for Electron and runs all desktop smoke workflows with temporary profiles.
 4. Packages for the runner's native architecture.

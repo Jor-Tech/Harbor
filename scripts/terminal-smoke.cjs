@@ -15,7 +15,12 @@ const {createTerminalServer}=require('../tests/helpers/terminal-server.cjs');
   await page.locator('.host-card').getByRole('button',{name:'Connect',exact:true}).click();
   const pane=page.locator('.terminal-pane:visible');await pane.getByText('Connected',{exact:true}).waitFor();assert.equal(await pane.getByLabel('Auto reconnect this tab').isChecked(),false);
   // Search real output, including wrapped and older scrollback lines.
-  for(const s of server.shells)s.write('Needle needle needles\r\n'+'x'.repeat(250)+'WRAPPED_TOKEN\r\n'+Array.from({length:90},(_,i)=>`line ${i}\r\n`).join(''));
+  for(const s of server.shells)s.write('Needle needle needles\r\n'+'x'.repeat(250)+'WRAPPED_TOKEN\r\n'+Array.from({length:90},(_,i)=>`line ${i}\r\n`).join('')+'\x1b[6n');
+  // A cursor-position reply confirms xterm parsed the entire fixture. Starting
+  // a search while SSH output is still arriving can select the final match
+  // during the search addon's asynchronous highlight refresh.
+  for(let i=0;i<300&&!/\x1b\[\d+;\d+R/.test(server.received.join(''));i++)await page.waitForTimeout(50);
+  assert.match(server.received.join(''),/\x1b\[\d+;\d+R/,'terminal parsed the search fixture');server.received.length=0;
   await pane.locator('.xterm-helper-textarea').focus();await page.keyboard.press(process.platform==='darwin'?'Meta+f':'Control+Shift+f');await pane.getByLabel('Find in terminal',{exact:true}).fill('needle');
   await pane.getByText('1 of 3',{exact:true}).waitFor();await pane.getByRole('button',{name:'Next match',exact:true}).click();await pane.getByText('2 of 3',{exact:true}).waitFor();
   await pane.getByLabel('Find in terminal',{exact:true}).press('Shift+Enter');await pane.getByText('1 of 3',{exact:true}).waitFor();

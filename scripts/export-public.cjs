@@ -4,7 +4,7 @@ const fs=require('node:fs/promises'),path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const {createHash}=require('node:crypto');
 
-const rootFiles=new Set(['.gitignore','README.md','LICENSE','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.mjs']);
+const rootFiles=new Set(['.gitignore','.nvmrc','README.md','LICENSE','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.mjs']);
 const directories=['.github/workflows/','assets/','build/','electron/','src/','scripts/','tests/'];
 const documents=new Set(['Harbor-MCP-guide-en.pdf','images/harbor-workspace.png','backup-management.md','backup-retention.md','desktop-previews.md','desktop-releases.md','mcp-agent-guide.md','mcp.md','user-guide.md','validation.md','vault-protection.md','vault-recovery.md']);
 function include(name,version){return rootFiles.has(name)||directories.some(prefix=>name.startsWith(prefix))||documents.has(name.startsWith('docs/')?name.slice(5):'')||name===`docs/releases/${version}.md`}

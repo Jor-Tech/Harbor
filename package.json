@@ -1,6 +1,6 @@
 {
   "name": "harbor-terminal",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "An independent SSH workspace with an encrypted, file-synced vault",
   "main": "electron/main.cjs",
@@ -116,7 +116,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.2",
-    "electron": "^44.9.1",
+    "electron": "^45.2.3",
     "electron-builder": "^26.15.3",
     "playwright": "^1.64.1",
     "vite": "^8.3.4"
@@ -133,5 +133,12 @@
     "node": ">=24"
   },
   "desktopName": "harbor.desktop",
-  "license": "MIT"
+  "license": "MIT",
+  "allowScripts": {
+    "cpu-features@0.0.10": true,
+    "electron-winstaller@5.4.0": true,
+    "node-pty@1.1.0": true,
+    "ssh2@1.17.0": true,
+    "fsevents@2.3.3": true
+  }
 }
