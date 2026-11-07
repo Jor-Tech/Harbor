@@ -99,15 +99,19 @@ Read [backup and recovery](docs/vault-recovery.md), [vault protection and upgrad
 
 ## Build and contribute
 
-Use Node.js 24 or newer:
+Use Node.js 26.13.0 LTS, pinned in `.nvmrc` and used by CI. With nvm installed:
 
 ```sh
+nvm install
+nvm use
 npm ci
 npm run build
 npm start
 ```
 
-For development, use `npm run dev`. For an unsigned package for the current OS, use `npm run dist:preview`; output goes to `preview/`.
+For development, use `npm run dev`. For an unsigned package for the current OS, use `npm run dist:preview`; output goes to `preview/`. The desktop runtime comes from Electron (45.2.3 includes Node.js 24.22.2), independently of the Node.js version used to build Harbor. Local MCP clients and headless mode continue to support Node.js 24 or newer.
+
+`package.json` pins install-script approvals for native dependencies and Windows packaging under `allowScripts`, as required by npm 12. Review and update those approvals when upgrading the corresponding dependencies.
 
 ```sh
 npm test

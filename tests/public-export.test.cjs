@@ -9,7 +9,7 @@ test('public export includes current product files, excluding private notes and 
 });
 test('export copies reviewed bytes without untracked data or Git history and refuses overwrite/symlinks',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'harbor-export-test-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));const root=path.join(dir,'source'),destination=path.join(dir,'public');await fs.mkdir(root);
- const files=['.gitignore','README.md','LICENSE','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.mjs','docs/releases/1.0.0.md','docs/roadmap.md','src/main.jsx'];
+ const files=['.gitignore','.nvmrc','README.md','LICENSE','THIRD_PARTY_NOTICES.md','package.json','package-lock.json','index.html','vite.config.mjs','docs/releases/1.0.0.md','docs/roadmap.md','src/main.jsx'];
  for(const file of files){await fs.mkdir(path.dirname(path.join(root,file)),{recursive:true});await fs.writeFile(path.join(root,file),file==='package.json'?JSON.stringify({version:'1.0.0'}):'test content\n')}
  execFileSync('git',['init','--quiet'],{cwd:root});execFileSync('git',['add','--',...files],{cwd:root});await fs.writeFile(path.join(root,'src/untracked-secret.txt'),'do not export');
  const result=await exportPublic({root,destination});assert.equal(result.files.length,files.length-1);assert.deepEqual(result.excluded,['docs/roadmap.md']);assert.equal(await fs.readFile(path.join(destination,'src/main.jsx'),'utf8'),'test content\n');assert(result.files.every(f=>/^[a-f0-9]{64}$/.test(f.sha256)));
