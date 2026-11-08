@@ -2,6 +2,7 @@
 const {_electron:electron}=require('playwright');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const version=require('../package.json').version;
+const notes=require('../electron/release-notes.json'),semver=require('semver');
 const password='upgrade-fixture-password';
 (async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'harbor-news-ui-')),dataDir=path.join(dir,'data');let app,page;
@@ -26,7 +27,7 @@ const password='upgrade-fixture-password';
   await seed({automatic:true,seenVersion:'0.3.0'});await launch();await noAnnouncement();await unlock();
   // An active editor must delay automatic display until it closes.
   await page.getByRole('button',{name:'New host',exact:true}).click();await page.getByRole('dialog',{name:'New host',exact:true}).waitFor();await noAnnouncement();await page.keyboard.press('Escape');
-  await dialog().waitFor();assert.equal(await dialog().locator('details[open]').count(),2);
+  await dialog().waitFor();assert.equal(await dialog().locator('details[open]').count(),notes.filter(note=>semver.gt(note.version,'0.3.0')&&semver.lte(note.version,version)).length);
   await page.waitForFunction(async version=>(await window.harbor.invoke('whatsNew:status')).pending.length===0,version);
   await page.screenshot({path:'research/harbor-whats-new-auto.png'});
   // Authentication arriving after the overview opens must take priority too.
@@ -40,6 +41,8 @@ const password='upgrade-fixture-password';
   await dialog().locator('summary').filter({hasText:'0.4.0'}).click();assert.equal(await dialog().locator('details[open]').count(),2);
   await dialog().getByRole('switch',{name:'Show what’s new after updates'}).uncheck();
   await page.waitForFunction(async()=>(await window.harbor.invoke('whatsNew:status')).automatic===false);
+  await page.waitForFunction(()=>!document.querySelector('.whats-new-dialog input[role="switch"]').disabled);
+  await dialog().getByRole('button',{name:'Get started',exact:true}).focus();
   await page.keyboard.press('Escape');await dialog().waitFor({state:'hidden'});assert(await opener.evaluate(el=>el===document.activeElement),await page.evaluate(()=>document.activeElement.outerHTML));
   assert(!(await page.getByRole('switch',{name:'Show what’s new after updates'}).isChecked()));
   for(const theme of ['dark','light']){
@@ -56,11 +59,11 @@ const password='upgrade-fixture-password';
   await seed({automatic:false,seenVersion:'0.3.0'});await launch();await unlock();await noAnnouncement();await settings();
   assert(!(await page.getByRole('switch',{name:'Show what’s new after updates'}).isChecked()));
   await page.getByRole('button',{name:'What’s new New',exact:true}).click();await dialog().waitFor();await dialog().getByRole('button',{name:'Get started',exact:true}).click();await stop();
-  await seed({automatic:true,seenVersion:'0.4.0'});await launch();await unlock();await noAnnouncement();await stop();
+  await seed({automatic:true,seenVersion:version});await launch();await unlock();await noAnnouncement();await stop();
   // Missing state establishes a baseline, without rewriting the existing vault.
   await fs.rm(path.join(dataDir,'whats-new.json'));await fs.writeFile(path.join(dataDir,'vault.hbr'),vaultBefore);
   await launch();await unlock();await noAnnouncement();assert.deepEqual(await fs.readFile(path.join(dataDir,'vault.hbr')),vaultBefore);
   assert.deepEqual(JSON.parse(await fs.readFile(path.join(dataDir,'whats-new.json'),'utf8')),{automatic:true,seenVersion:version});assert.deepEqual(errors,[]);
-  console.log('PASS: automatic meaningful highlights, dialog priority, once-only acknowledgment, maintenance suppression, first-run baseline, manual history, persistent opt-out, keyboard focus and responsive light/dark layouts.');
+  console.log('PASS: automatic meaningful highlights, dialog priority, once-only acknowledgment, first-run baseline, manual history, persistent opt-out, keyboard focus and responsive light/dark layouts.');
  }finally{await app?.close();await fs.rm(dir,{recursive:true,force:true})}
 })().catch(error=>{console.error(error);process.exitCode=1});

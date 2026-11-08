@@ -28,6 +28,11 @@ test('release preparation combines exactly four verified builds and seven instal
   const args=await artifacts(t),names=await prepare(args);assert.equal(names.length,7);
   const result=JSON.parse(await fs.readFile(path.join(args.output,'BUILDS.json'),'utf8'));assert.equal(result.builds.length,4);assert.equal(result.commit,commit);
   assert.equal((await fs.readFile(path.join(args.output,'SHA256SUMS.txt'),'utf8')).trim().split('\n').length,7);
+  for(const [manifest,key] of [['latest.yml','win32-x64'],['latest-linux.yml','linux-x64']]){
+    const feed=JSON.parse(await fs.readFile(path.join(args.output,manifest),'utf8'));
+    assert.equal(feed.version,version);assert.deepEqual(feed.files.map(f=>f.url),targets[key](version));
+    for(const file of feed.files){const bytes=await fs.readFile(path.join(args.output,file.url));assert.equal(file.sha512,createHash('sha512').update(bytes).digest('base64'));assert.equal(file.size,bytes.length)}
+  }
   await assert.rejects(prepare(args),/empty/);
 });
 test('release preparation rejects missing platforms, tampered installers, wrong commit and unexpected files',async t=>{

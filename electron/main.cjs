@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, powerMonitor, clipboard, Menu, shell, Tray } = require('electron');
 const {RELEASES_URL,releaseInfo}=require('./releases.cjs');
 const {UpdateChecker}=require('./update-checker.cjs');
+const {UpdateInstaller,installationSupport,installDeb}=require('./update-installer.cjs');
 const {WhatsNew}=require('./whats-new.cjs');
 const path = require('node:path');
 const fs = require('node:fs/promises');
@@ -21,7 +22,7 @@ app.setName('Harbor');
 if (process.env.HARBOR_DATA_DIR) app.setPath('userData', path.resolve(process.env.HARBOR_DATA_DIR));
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.show();win.focus();}});
-let quitting = false, retentionTimer, mcp, tray, releaseRuntime, updates, whatsNew;
+let quitting = false, retentionTimer, mcp, tray, releaseRuntime, updates, whatsNew, updateInstallPrompt=false;
 let sshImportPreview, syncer, syncEpoch=0;
 let win, vault, connections, terminals, files, authPrompts, timer, touchGeneration = 0, lockGeneration = 0, device = {}, mutation = Promise.resolve();
 const assertGeneration = value => { if (value !== lockGeneration) throw new Error('Vault was locked during the operation'); };
@@ -30,7 +31,7 @@ const send = (event, data) => {
   if (event === 'terminal:status' && ['closed','error','waiting','cancelling'].includes(data.status)) files?.cancelSession(data.id);
   if (win && !win.isDestroyed()) win.webContents.send(event, data);
 };
-const serialize = fn => { const next = mutation.then(fn); mutation = next.catch(() => {}); return next; };
+const serialize = fn => { if(updates?.installer?.state.phase==='installing')return Promise.reject(new Error('Harbor is installing an update. Please wait.')); const next = mutation.then(fn); mutation = next.catch(() => {}); return next; };
 function startBackupCleanup() {
   clearInterval(retentionTimer);
   const generation=lockGeneration;
@@ -100,6 +101,22 @@ async function invoke(action, args = {}, generation = lockGeneration) {
     case 'updates:status': return updates.snapshot();
     case 'updates:check': return updates.check();
     case 'updates:configure': return serialize(()=>updates.configure(args));
+    case 'updates:download': {
+      await mutation;
+      if(updates.state.phase!=='available')throw new Error('Check for an available update first.');
+      await updates.installer.download(updates.state.latest);return updates.snapshot();
+    }
+    case 'updates:cancel': updates.installer.cancel();return updates.snapshot();
+    case 'updates:discard': updates.installer.discard();return updates.snapshot();
+    case 'updates:install': {
+      if(updateInstallPrompt||updates.installer.state.phase!=='downloaded')throw new Error('Download an update first.');
+      updateInstallPrompt=true;
+      try{
+        const result=await dialog.showMessageBox(win,{type:'question',message:`Install Harbor ${updates.installer.state.version}?`,detail:'Harbor will close and restart. Active terminals, transfers and MCP connections will disconnect. Finish your work before continuing. Your saved vault and local settings will be kept. Your operating system may ask for permission to install.',buttons:['Not now','Install and restart'],defaultId:0,cancelId:0});
+        if(result.response===1)await updates.installer.install();
+        return updates.snapshot();
+      }finally{updateInstallPrompt=false}
+    }
     case 'updates:open': await shell.openExternal(updates.state.phase==='available'?updates.state.latest.url:RELEASES_URL);return true;
     case 'whatsNew:status': return whatsNew.snapshot();
     case 'whatsNew:configure': return serialize(()=>whatsNew.configure(args));
@@ -240,6 +257,14 @@ app.whenReady().then(async () => {
   try{releaseRuntime=require('./runtime-lock.cjs').acquireRuntime(app.getPath('userData'));}catch(error){dialog.showErrorBox('Harbor is already running',error.message);app.quit();return;}
   try { const saved=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'device.json'),'utf8')); if(typeof saved.syncFolder==='string' && path.isAbsolute(saved.syncFolder))device.syncFolder=saved.syncFolder; device.autoSync=saved.autoSync===true; } catch {}
   updates=new UpdateChecker({dir:app.getPath('userData'),version:app.getVersion(),platform:process.platform,arch:process.arch,emit:state=>send('updates:changed',state)});
+  updates.installer=new UpdateInstaller({
+    support:await installationSupport({packaged:app.isPackaged,platform:process.platform,arch:process.arch,resourcesPath:process.resourcesPath,appImage:process.env.APPIMAGE}),
+    version:app.getVersion(),platform:process.platform,arch:process.arch,
+    createUpdater:kind=>{const updaters=require('electron-updater');return new updaters[{nsis:'NsisUpdater',appimage:'AppImageUpdater',deb:'DebUpdater'}[kind]]()},
+    createToken:()=>new (require('electron-updater').CancellationToken)(),
+    emit:()=>updates.changed(),beforeInstall:()=>mutation,
+    installDeb:file=>installDeb(file,{execFile:require('node:util').promisify(require('node:child_process').execFile),app}),
+  });
   await updates.load();
   whatsNew=new WhatsNew({dir:app.getPath('userData'),version:app.getVersion(),packaged:app.isPackaged});
   await whatsNew.load();
@@ -306,4 +331,4 @@ app.on('activate',()=>{if(win){win.show();if(win.isMinimized())win.restore();win
 app.on('window-all-closed',() => { if (process.platform !== 'darwin') app.quit(); });
 app.on('before-quit',() => { releaseRuntime?.();tray?.destroy();tray=null; void mcp?.close(); clearInterval(retentionTimer); quitting = true; ++syncEpoch; syncer?.close(); clearTimeout(timer); authPrompts?.cancelAll(); files?.cancelAll(); connections?.closeAll(); vault?.lock(); });
 
-app.on('before-quit',()=>updates?.stop());
+app.on('before-quit',()=>{updates?.stop();updates?.installer?.stop()});

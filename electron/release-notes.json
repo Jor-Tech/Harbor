@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.5.0",
+    "date": "2026-11-08",
+    "title": "Update Harbor from Settings",
+    "meaningful": true,
+    "items": [
+      "Download updates directly in Settings on Windows and Linux, with progress, cancellation and retry.",
+      "Install and restart when you are ready. Harbor asks before disconnecting active sessions and preserves your saved vault and local settings.",
+      "View releases & downloads remains available for manual updates. Current macOS builds continue to use this option.",
+      "See offline release highlights in What’s new, with optional announcements after updates."
+    ]
+  },
+  {
     "version": "0.4.1",
     "date": "2026-11-07",
     "title": "Desktop runtime update",

@@ -78,7 +78,9 @@ In **Settings → Releases & updates**:
 - **Automatically check for updates** checks shortly after launch and every 12 hours while Harbor is running. It is off by default.
 - **Include preview releases** controls whether alpha, beta and other prereleases are included. It starts enabled when running a preview.
 
-A newer compatible release adds an **Update available** button to the titlebar. Open it to view the version and its download page. Downloads and installation are manual; Harbor never installs an update or restarts itself automatically.
+A newer compatible release adds an **Update available** button to the titlebar. On Windows (NSIS) and Linux (AppImage or DEB), open it and choose **Download update**. Harbor shows download progress and verifies the downloaded package. Choose **Install and restart** when ready; Harbor asks before closing active sessions. Downloads never install automatically on exit. Saved vault data and local MCP settings are preserved.
+
+**View releases & downloads** remains available for manual installation. Current macOS builds require this manual route because they are not publisher-signed. Older releases without update metadata also require a manual download. Installing the first Harbor version with this feature is a one-time manual upgrade.
 
 Checks send no vault contents, saved hosts or credentials. GitHub receives the network request, including your public IP address. Preferences stay on this device. If release information is unavailable, Harbor shows an error rather than claiming you are up to date. **View releases & downloads** remains available in the browser.
 

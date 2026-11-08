@@ -40,7 +40,7 @@ async function prepare({input, output, version, commit, notes}) {
       if (!stat.isFile() || stat.size === 0) throw new Error('Invalid installer');
       const bytes=await fs.readFile(source), hash=createHash('sha256').update(bytes).digest('hex');
       if (sums.get(name) !== hash || assets.has(name)) throw new Error('Installer checksum mismatch');
-      assets.set(name,{source,hash});
+      assets.set(name,{source,hash,sha512:createHash('sha512').update(bytes).digest('base64'),size:stat.size});
     }
   }
   if (seen.size !== Object.keys(targets).length) throw new Error('All four desktop builds are required');
@@ -49,6 +49,13 @@ async function prepare({input, output, version, commit, notes}) {
   if ((await fs.readdir(output)).length) throw new Error('Release output directory must be empty');
   const names=[...assets.keys()].sort();
   for (const name of names) await fs.copyFile(assets.get(name).source,path.join(output,name));
+  // One immutable feed per release tag. Build from the exact verified bytes,
+  // after all platform jobs succeed; never publish a feed ahead of installers.
+  // JSON is valid YAML and can be read by electron-updater's generic provider.
+  for(const [manifest,key] of [['latest.yml','win32-x64'],['latest-linux.yml','linux-x64']]){
+    const files=targets[key](version).map(name=>({url:name,sha512:assets.get(name).sha512,size:assets.get(name).size}));
+    await fs.writeFile(path.join(output,manifest),JSON.stringify({version,files,path:files[0].url,sha512:files[0].sha512},null,2)+'\n');
+  }
   await fs.writeFile(path.join(output,'SHA256SUMS.txt'),names.map(name=>`${assets.get(name).hash}  ${name}`).join('\n')+'\n');
   await fs.writeFile(path.join(output,'BUILDS.json'),JSON.stringify({version,commit,builds},null,2)+'\n');
   await fs.writeFile(path.join(output,'RELEASE-NOTES.md'),notes);
