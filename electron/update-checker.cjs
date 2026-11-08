@@ -59,7 +59,7 @@ class UpdateChecker {
   Object.assign(this,{dir,version,platform,arch,emit,fetchImpl,now,schedule,unschedule});
   this.preferences=preferences({},version);this.state={phase:'idle',lastChecked:null,latest:null,error:''};this.epoch=0;this.nextAllowed=0;this.inflight=null;this.releases=null;
  }
- snapshot(){return {...this.state,preferences:{...this.preferences}}}
+ snapshot(){return {...this.state,preferences:{...this.preferences},...(this.installer?{installation:this.installer.snapshot()}: {})}}
  changed(){this.emit(this.snapshot());return this.snapshot()}
  async load(){try{this.preferences=preferences(JSON.parse(await fs.readFile(path.join(this.dir,'updates.json'),'utf8')),this.version)}catch{}return this.snapshot()}
  start(){this.arm(30_000)}
@@ -67,6 +67,7 @@ class UpdateChecker {
  stop(){this.unschedule(this.timer);this.timer=null;++this.epoch;this.controller?.abort();this.inflight=null}
  async configure(value){
   if(!value||typeof value!=='object'||Array.isArray(value)||!Object.keys(value).length||Object.keys(value).some(k=>!['automatic','includePreviews'].includes(k)||typeof value[k]!=='boolean'))throw new Error('Invalid update preferences.');
+  if(this.installer?.active&&'includePreviews' in value)throw new Error('Finish or dismiss the current update before changing release channel.');
   const next={...this.preferences,...value},file=path.join(this.dir,'updates.json'),temp=file+'.'+randomUUID()+'.tmp';
   try{await fs.mkdir(this.dir,{recursive:true});await fs.writeFile(temp,JSON.stringify(next),{mode:0o600,flag:'wx'});await fs.rename(temp,file)}finally{await fs.rm(temp,{force:true})}
   this.stop();this.preferences=next;
@@ -75,6 +76,7 @@ class UpdateChecker {
  }
  select(){const latest=latestRelease(this.releases,{version:this.version,platform:this.platform,arch:this.arch,...this.preferences});this.state={phase:!latest?'empty':semver.gt(latest.version,this.version)?'available':'current',latest,lastChecked:this.state.lastChecked,error:''}}
  check(){
+  if(this.installer?.active){this.arm();return Promise.resolve(this.snapshot())}
   if(this.inflight)return this.inflight;
   if(this.now()<this.nextAllowed){this.arm(Math.max(INTERVAL,this.nextAllowed-this.now()));return Promise.resolve(this.snapshot())}
   const epoch=this.epoch,controller=new AbortController();this.controller=controller;this.nextAllowed=this.now()+COOLDOWN;

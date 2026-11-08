@@ -1,6 +1,6 @@
 {
   "name": "harbor-terminal",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "An independent SSH workspace with an encrypted, file-synced vault",
   "main": "electron/main.cjs",
@@ -49,6 +49,11 @@
   "build": {
     "appId": "local.harbor.terminal",
     "productName": "Harbor",
+    "publish": {
+      "provider": "generic",
+      "url": "https://github.com/Jor-Tech/Harbor/releases/latest/download/",
+      "channel": "latest"
+    },
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -107,6 +112,7 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/xterm": "^6.0.0",
+    "electron-updater": "6.8.12",
     "lucide-react": "^1.59.0",
     "node-pty": "^1.1.0",
     "react": "^19.3.1",
