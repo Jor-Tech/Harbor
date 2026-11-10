@@ -10,6 +10,8 @@ Permissions and sessions are per client and per host. Commands, connections, fil
 
 Locking, disabling access, changing a policy or revoking a client invalidates sessions, pending requests and results in flight. Unlock alone does not resume access. Audit records retain bounded metadata, not commands, file paths, contents, passwords, tokens or terminal output.
 
+Vault lock retains established MCP client transports, while blocking tool discovery and calls until the user unlocks and chooses **Resume MCP access**. The same client/chat can then submit new requests without restarting its stdio bridge. Previous SSH sessions and temporary approvals remain invalid. Disabling MCP, changing policy, explicitly disconnecting or revoking a client, and quitting Harbor still close the affected transports.
+
 Background mode retains the approval window. Fully headless mode denies interactive approvals and authentication challenges. It starts locked and accepts the vault password only from an explicitly attached local terminal, never an argument, environment variable, configuration file or MCP call. Headless execution requires separately configured unattended rules. Exact actions are the default; broader scopes and writes require explicit local configuration and consent. Command glob/prefix patterns are not supported.
 
 Publication is gated by the native release pipeline. See [validation and device checks](validation.md) for coverage and remaining hands-on checks; source availability is not a statement that installers have been published.

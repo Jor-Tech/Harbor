@@ -20,6 +20,16 @@ const {Client}=require('@modelcontextprotocol/sdk/client/index.js'),{StdioClient
   await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1})});
   async function approved(name,args){const response=client.callTool({name,arguments:args});await page.getByRole('tab',{name:'Requests',exact:true}).click();await page.locator('.mcp-request').waitFor();await page.getByLabel('I approve this action and sharing its result with this client.',{exact:true}).check();await page.getByRole('button',{name:'Approve once',exact:true}).click();const result=await response;assert(!result.isError,JSON.stringify(result));return JSON.parse(result.content[0].text);}
   const {sessionId}=await approved('harbor_connect',{hostId:'fixture'});const result=await approved('harbor_exec',{sessionId,command:'fixture-command'});assert.equal(result.stdout,'HARBOR_MCP_OK');
+  // Keep this MCP client alive across lock/unlock, just like an existing chat.
+  await page.getByTitle('Lock vault',{exact:true}).click();await page.getByRole('heading',{name:'Welcome back',exact:true}).waitFor();
+  await assert.rejects(client.listTools());
+  await page.getByLabel('Vault password',{exact:true}).fill('Harbor-MCP-test-password');await page.getByRole('button',{name:'Unlock vault',exact:true}).click();await page.getByRole('heading',{name:'Local MCP access',exact:true}).waitFor();
+  await assert.rejects(client.listTools());
+  await page.getByRole('button',{name:'Resume MCP access',exact:true}).click();await page.getByText('MCP active',{exact:true}).waitFor();
+  assert((await client.listTools()).tools.some(tool=>tool.name==='harbor_connect'));
+  assert.equal((await client.callTool({name:'harbor_exec',arguments:{sessionId,command:'fixture-command'}})).isError,true);
+  const resumed=await approved('harbor_connect',{hostId:'fixture'});assert.notEqual(resumed.sessionId,sessionId);
+  assert.equal((await approved('harbor_exec',{sessionId:resumed.sessionId,command:'fixture-command'})).stdout,'HARBOR_MCP_OK');
   await page.screenshot({path:'research/harbor-mcp-settings.png'});await client.close();client=null;
   await page.getByRole('tab',{name:'Clients',exact:true}).click();await page.getByRole('tab',{name:'Headless (Experimental)',exact:true}).click();await page.getByLabel('Headless host',{exact:true}).selectOption('fixture');await page.getByLabel('I authorize this unattended action and sharing its results.',{exact:true}).check();await page.getByRole('button',{name:'Add headless rule',exact:true}).click();
   await page.waitForFunction(async()=>(await window.harbor.invoke('mcp:status')).clients[0].automations?.length===1);await page.getByRole('button',{name:'Resume MCP access',exact:true}).click();await page.getByText('MCP active',{exact:true}).waitFor();

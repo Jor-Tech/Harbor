@@ -121,7 +121,10 @@ class McpAccess {
  appendApproval(entries,entry){if(entries.some(r=>r.binding===entry.binding&&JSON.stringify(r.rule)===JSON.stringify(entry.rule)))return entries;if(entries.length>=20)throw new Error('At most 20 remembered approvals.');return [...entries,entry];}
  async setBackground(background){return this.manage(async()=>{await this.unlocked();if(typeof background!=='boolean')throw new Error('Invalid setting.');await this.persist({...this.state,background});this.changed();return this.snapshot();});}
  async resume(){return this.manage(async()=>{const epoch=this.epoch;await this.unlocked();if(!this.state.enabled||this.error)throw new Error('Enable MCP first.');await this.server.start();await this.unlocked();if(epoch!==this.epoch)throw new Error('Access changed during resume.');this.active=true;this.changed();return this.snapshot();});}
- pause(){this.active=false;this.epoch++;this.server.closePeers();this.cancelAll?.();this.changed();}
+ // A vault lock can retain the authenticated MCP transport so stdio clients do
+ // not have to restart their bridge. Every request still checks active access;
+ // SSH sessions, approvals and in-flight results are invalidated in either case.
+ pause({keepClients=false}={}){this.active=false;this.epoch++;if(!keepClients)this.server.closePeers();this.cancelAll?.();this.changed();}
  async create(args){return this.manage(async()=>{
   await this.unlocked();if(this.state.clients.length>=LIMITS.clients)throw new Error('Client limit reached.');const name=text(args.name?.trim(),80),id=randomUUID(),token=randomBytes(32).toString('hex');
   const serverIdentity=await this.server.identity();
