@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.5.1",
+    "date": "2026-11-10",
+    "title": "Resume MCP access and enter verification codes directly",
+    "meaningful": false,
+    "items": [
+      "Existing MCP clients can continue after locking and unlocking Harbor and choosing Resume MCP access, without restarting the client app.",
+      "MFA, password and SSH key selection prompts focus their first field so you can type, paste or select a key immediately."
+    ]
+  },
+  {
     "version": "0.5.0",
     "date": "2026-11-08",
     "title": "Update Harbor from Settings",
