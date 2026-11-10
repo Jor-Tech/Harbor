@@ -100,7 +100,7 @@ test('a remembered file read allows only its exact path and changing host rights
 });
 test('lock, client disconnect and cancellation discard pending actions',async()=>{
  for(const reason of ['lock','disconnect','cancel']){const f=await fixture();try{const controller=new AbortController(),p=f.a.call(f.peer,'harbor_connect',{hostId:'one'},controller.signal),rejected=assert.rejects(p);await pending(f.a);
-  if(reason==='lock')f.a.pause();else if(reason==='disconnect')f.a.disconnect(f.peer);else controller.abort();await rejected;assert.equal(f.a.pending.size,0);assert.deepEqual(f.effects,[]);
+  if(reason==='lock')f.a.pause({keepClients:true});else if(reason==='disconnect')f.a.disconnect(f.peer);else controller.abort();await rejected;assert.equal(f.a.pending.size,0);assert.deepEqual(f.effects,[]);
  }finally{await f.close()}}
 });
 
@@ -109,7 +109,7 @@ test('revoking access while a command runs discards its returned output',async()
   const {a,peer}=f;const connect=a.call(peer,'harbor_connect',{hostId:'one'});a.answer((await pending(a)).id,true,true);const {sessionId}=await connect;
   a.ssh.exec=()=>new Promise(resolve=>{complete=resolve});
   const p=a.call(peer,'harbor_exec',{sessionId,command:'running'}),rejected=assert.rejects(p);a.answer((await pending(a)).id,true,true);
-  for(let i=0;i<100&&!complete;i++)await new Promise(r=>setTimeout(r,5));assert(complete);a.pause();complete({stdout:'DO_NOT_RELEASE'});await rejected;
+  for(let i=0;i<100&&!complete;i++)await new Promise(r=>setTimeout(r,5));assert(complete);a.pause({keepClients:true});complete({stdout:'DO_NOT_RELEASE'});await rejected;
   assert.equal(a.active,false);assert.equal(a.sessions.size,0);
  }finally{await f.close()}
 });
